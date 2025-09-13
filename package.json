@@ -26,6 +26,7 @@
   "devDependencies": {
     "@eslint/js": "^9.18.0",
     "@modelcontextprotocol/inspector": "^0.16.2",
+    "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.3",
     "@types/node": "^22.15.30",
     "@types/pdf-parse": "^1.1.5",
