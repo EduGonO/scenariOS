@@ -5,7 +5,7 @@ Prototype web app for analyzing film scripts using the Model Context Protocol.
 ## Features
 
 - Upload a PDF script and extract text via a minimal OCR endpoint.
-- MCP server available at `/api/mcp` for future tool integrations.
+- MCP tools `parse_scene` and `search_scenes` for structured scene metadata.
 
 ## Development
 
@@ -26,9 +26,11 @@ npm run build
 
 ## MCP inspector
 
-Test the MCP endpoint with the inspector:
+Set `MISTRAL_API_KEY` and test the MCP endpoint with the inspector:
 
 ```bash
-npm run inspector
+MISTRAL_API_KEY=your_key npm run inspector
 ```
+
+Use `parse_scene` to add scenes, then `search_scenes` to query them.
 
