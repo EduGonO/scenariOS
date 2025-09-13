@@ -3,17 +3,6 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { getServer } from "../../src/server";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    res
-      .status(405)
-      .json({
-        jsonrpc: "2.0",
-        error: { code: -32000, message: "Method not allowed." },
-        id: null,
-      });
-    return;
-  }
-
   try {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
