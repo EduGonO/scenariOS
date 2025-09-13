@@ -11,7 +11,13 @@ const SceneInfo = z.object({
 });
 
 type Scene = z.infer<typeof SceneInfo> & { id: string; raw: string };
-const sceneStore: Scene[] = [];
+
+// Persist scenes across hot-reloads or separate imports by attaching the store
+// to the global object. This helps keep scenes registered even after navigating
+// between pages which can cause the module to be re-evaluated.
+const g = globalThis as any;
+g.__scenariOSSceneStore = g.__scenariOSSceneStore || [];
+const sceneStore: Scene[] = g.__scenariOSSceneStore as Scene[];
 
 export const getServer = (): McpServer => {
   const server = new McpServer(

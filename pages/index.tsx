@@ -2,6 +2,7 @@ import { useState } from "react";
 import Link from "next/link";
 import FileUploader from "../components/FileUploader";
 import ScriptDisplay from "../components/ScriptDisplay";
+import McpDebug from "../components/McpDebug";
 import { Scene, CharacterStats, parseScript } from "../utils/parseScript";
 
 export default function Home() {
@@ -10,6 +11,7 @@ export default function Home() {
   const [characters, setCharacters] = useState<CharacterStats[]>([]);
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
+  const [debugVisible, setDebugVisible] = useState(false);
 
   async function processFile(file: File) {
     setLoading(true);
@@ -93,12 +95,21 @@ export default function Home() {
       <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden p-6">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-light text-gray-600">scenariOS</h1>
-          <Link
-            href="/mcp"
-            className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
-          >
-            MCP
-          </Link>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setDebugVisible(true)}
+              className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
+            >
+              Debug
+            </button>
+            <Link
+              href="/mcp"
+              className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
+            >
+              MCP
+            </Link>
+          </div>
         </div>
         {!scenes.length ? (
           <>
@@ -117,6 +128,22 @@ export default function Home() {
           </div>
         )}
       </div>
+      {debugVisible && (
+        <div className="fixed inset-0 z-50 overflow-auto bg-black/50 p-6">
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-4 text-right">
+              <button
+                type="button"
+                onClick={() => setDebugVisible(false)}
+                className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
+              >
+                Close
+              </button>
+            </div>
+            <McpDebug />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
