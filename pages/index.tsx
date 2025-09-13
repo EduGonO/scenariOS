@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Link from 'next/link';
 import FileUploader from '../components/FileUploader';
 import ScriptDisplay from '../components/ScriptDisplay';
 import { Scene, CharacterStats, parseScript } from '../utils/parseScript';
@@ -69,6 +70,14 @@ export default function Home() {
             <ScriptDisplay scenes={scenes} characters={characters} />
           </div>
         )}
+        <div className="mt-6">
+          <Link
+            href="/mcp"
+            className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            Open MCP Tester
+          </Link>
+        </div>
       </div>
     </main>
   );
