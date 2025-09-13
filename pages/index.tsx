@@ -1,28 +1,28 @@
-import { useState } from 'react';
-import Link from 'next/link';
-import FileUploader from '../components/FileUploader';
-import ScriptDisplay from '../components/ScriptDisplay';
-import { Scene, CharacterStats, parseScript } from '../utils/parseScript';
+import { useState } from "react";
+import Link from "next/link";
+import FileUploader from "../components/FileUploader";
+import ScriptDisplay from "../components/ScriptDisplay";
+import { Scene, CharacterStats, parseScript } from "../utils/parseScript";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [characters, setCharacters] = useState<CharacterStats[]>([]);
-  const [title, setTitle] = useState<string>('');
-  const [author, setAuthor] = useState<string>('');
+  const [title, setTitle] = useState<string>("");
+  const [author, setAuthor] = useState<string>("");
 
   async function processFile(file: File) {
     setLoading(true);
     const reader = new FileReader();
     reader.onload = async () => {
-      const base64 = (reader.result as string).split(',')[1];
-      const res = await fetch('/api/ocr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const base64 = (reader.result as string).split(",")[1];
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file: base64 }),
       });
       const data = await res.json();
-      const text = data.text ?? '';
+      const text = data.text ?? "";
       const { scenes: parsedScenes, characters: parsedChars } = parseScript(text);
       const [scriptTitle, scriptAuthor] = extractMetadata(text);
       setScenes(parsedScenes);
@@ -35,22 +35,22 @@ export default function Home() {
   }
 
   function extractMetadata(text: string): [string, string] {
-    const pages = text.split('\f');
-    const firstPage = pages[0] || '';
+    const pages = text.split("\f");
+    const firstPage = pages[0] || "";
     const lines = firstPage
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter(Boolean);
-    const scriptTitle = lines[0] || 'Untitled';
+    const scriptTitle = lines[0] || "Untitled";
     const authorLine = lines.find((l) => /^by\s+/i.test(l));
-    const scriptAuthor = authorLine ? authorLine.replace(/^by\s+/i, '') : 'Unknown';
+    const scriptAuthor = authorLine ? authorLine.replace(/^by\s+/i, "") : "Unknown";
     return [scriptTitle, scriptAuthor];
   }
 
   return (
     <main
       className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
-      style={{ height: '100dvh' }}
+      style={{ height: "100dvh" }}
     >
       <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden p-6">
         <h1 className="mb-4 text-left text-base font-light text-gray-600">scenariOS</h1>
@@ -70,11 +70,16 @@ export default function Home() {
             <ScriptDisplay scenes={scenes} characters={characters} />
           </div>
         )}
+        {scenes.length > 0 && (
+          <div className="mt-6">
+            <h3 className="mb-2 text-sm font-semibold text-gray-700">Debug metadata</h3>
+            <pre className="max-h-64 overflow-auto rounded bg-white p-2 text-xs shadow">
+              {JSON.stringify({ scenes, characters }, null, 2)}
+            </pre>
+          </div>
+        )}
         <div className="mt-6">
-          <Link
-            href="/mcp"
-            className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
+          <Link href="/mcp" className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
             Open MCP Tester
           </Link>
         </div>

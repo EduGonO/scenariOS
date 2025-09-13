@@ -1,10 +1,5 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
-import {
-  Scene,
-  ScenePart,
-  CharacterStats,
-  cleanName,
-} from '../utils/parseScript';
+import React, { useMemo, useRef, useState, useEffect } from "react";
+import { Scene, ScenePart, CharacterStats, cleanName } from "../utils/parseScript";
 
 interface Props {
   scenes: Scene[];
@@ -12,15 +7,15 @@ interface Props {
 }
 
 const COLORS = [
-  'bg-red-200',
-  'bg-blue-200',
-  'bg-green-200',
-  'bg-purple-200',
-  'bg-yellow-200',
-  'bg-pink-200',
-  'bg-indigo-200',
-  'bg-teal-200',
-  'bg-orange-200',
+  "bg-red-200",
+  "bg-blue-200",
+  "bg-green-200",
+  "bg-purple-200",
+  "bg-yellow-200",
+  "bg-pink-200",
+  "bg-indigo-200",
+  "bg-teal-200",
+  "bg-orange-200",
 ];
 
 export default function ScriptDisplay({ scenes, characters }: Props) {
@@ -39,9 +34,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
     return map;
   }, [characters]);
 
-  const filteredScenes = filterChar
-    ? scenes.filter((s) => s.characters.includes(filterChar))
-    : scenes;
+  const filteredScenes = filterChar ? scenes.filter((s) => s.characters.includes(filterChar)) : scenes;
 
   useEffect(() => {
     if (!filterChar) setShowReset(false);
@@ -61,7 +54,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           setActiveScene(idx);
         }
       },
-      { root: container, threshold: 0.1 }
+      { root: container, threshold: 0.1 },
     );
 
     sceneRefs.current.forEach((el) => el && observer.observe(el));
@@ -74,7 +67,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
     const el = container?.children[activeScene] as HTMLElement | undefined;
     if (container && el) {
       const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
-      container.scrollTo({ top, behavior: 'smooth' });
+      container.scrollTo({ top, behavior: "smooth" });
     }
   }, [activeScene, filteredScenes.length]);
 
@@ -83,7 +76,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
   }, [filterChar]);
 
   function normalize(tok: string) {
-    return cleanName(tok.toUpperCase()).replace(/'S?$/, '');
+    return cleanName(tok.toUpperCase()).replace(/'S?$/, "");
   }
 
   function highlight(text: string) {
@@ -92,10 +85,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
       const base = normalize(tok);
       if (colorMap[base]) {
         return (
-          <span
-            key={idx}
-            className={`rounded px-1 font-semibold ${colorMap[base]} text-gray-800`}
-          >
+          <span key={idx} className={`rounded px-1 font-semibold ${colorMap[base]} text-gray-800`}>
             {tok}
           </span>
         );
@@ -126,10 +116,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
   sceneRefs.current = [];
 
   return (
-    <div
-      className="flex h-full flex-col overflow-hidden"
-      style={{ fontFamily: 'Courier, monospace' }}
-    >
+    <div className="flex h-full flex-col overflow-hidden" style={{ fontFamily: "Courier, monospace" }}>
       <div className="mb-4 flex justify-center">
         <div className="relative">
           <button
@@ -138,9 +125,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           >
             {filterChar ? (
               <>
-                Scenes with <span className="font-semibold">{filterChar}</span> ({
-                  filteredScenes.length
-                })
+                Scenes with <span className="font-semibold">{filterChar}</span> ({filteredScenes.length})
               </>
             ) : (
               <>All {scenes.length} scenes</>
@@ -162,16 +147,12 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         </div>
       </div>
       <div className="flex flex-1 gap-6 overflow-hidden">
-        <div
-          className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white"
-          ref={listRef}
-        >
+        <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white" ref={listRef}>
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.number || originalIdx + 1;
-            const match = scene.heading.match(/^(INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)(.*)$/i);
-            const type = match ? match[1].toUpperCase() : '';
-            const rest = match ? match[2].trim() : scene.heading;
+            const type = scene.setting;
+            const rest = scene.location;
             return (
               <button
                 key={idx}
@@ -179,36 +160,35 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                   setActiveScene(idx);
                   requestAnimationFrame(() => {
                     const el = sceneRefs.current[idx];
-                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    el?.scrollIntoView({ behavior: "smooth", block: "start" });
                   });
                 }}
                 className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
-                  activeScene === idx ? 'bg-gray-100 font-medium' : ''
+                  activeScene === idx ? "bg-gray-100 font-medium" : ""
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">{displayNumber}</span>
-                  {type && (
-                    <span className="rounded bg-gray-200 px-1 text-[10px] font-semibold text-gray-700">
-                      {type}
-                    </span>
-                  )}
+                  <div className="flex gap-1">
+                    {type && (
+                      <span className="rounded bg-gray-200 px-1 text-[10px] font-semibold text-gray-700">{type}</span>
+                    )}
+                    {scene.time && (
+                      <span className="rounded bg-gray-200 px-1 text-[10px] font-semibold text-gray-700">
+                        {scene.time}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-1 text-xs text-gray-700">{rest}</div>
               </button>
             );
           })}
         </div>
-        <div
-          ref={viewerRef}
-          className="flex-1 overflow-y-auto px-6 pb-6 pt-0 space-y-8"
-        >
+        <div ref={viewerRef} className="flex-1 overflow-y-auto px-6 pb-6 pt-0 space-y-8">
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.number || originalIdx + 1;
-            const match = scene.heading.match(/^(INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)(.*)$/i);
-            const type = match ? match[1].toUpperCase() : '';
-            const rest = match ? match[2].trim() : scene.heading;
             return (
               <div
                 key={idx}
@@ -219,18 +199,18 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
               >
                 <div className="sticky top-0 z-10 -mx-6 rounded-b-xl bg-white/70 px-6 py-2 backdrop-blur-sm shadow">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-semibold text-gray-700">{`${displayNumber}. ${rest}`}</span>
-                    {type && (
+                    <span className="font-semibold text-gray-700">{`${displayNumber}. ${scene.location}`}</span>
+                    {scene.setting && (
                       <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">
-                        {type}
+                        {scene.setting}
                       </span>
+                    )}
+                    {scene.time && (
+                      <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">{scene.time}</span>
                     )}
                     <div className="flex flex-wrap gap-1 min-h-[1.25rem]">
                       {scene.characters.map((c) => (
-                        <span
-                          key={c}
-                          className={`rounded px-1 text-xs font-medium ${colorMap[c]} text-gray-800`}
-                        >
+                        <span key={c} className={`rounded px-1 text-xs font-medium ${colorMap[c]} text-gray-800`}>
                           {c}
                         </span>
                       ))}
@@ -240,12 +220,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                 <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                   <div className="space-y-4 text-gray-700">
                     {scene.parts.map((part, pIdx) => (
-                      <Part
-                        key={pIdx}
-                        part={part}
-                        colorMap={colorMap}
-                        highlight={highlight}
-                      />
+                      <Part key={pIdx} part={part} colorMap={colorMap} highlight={highlight} />
                     ))}
                   </div>
                 </div>
@@ -260,7 +235,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
             onClick={() => {
               setFilterChar(null);
               setActiveScene(null);
-              requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
+              requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
             }}
             className="flex-shrink-0 self-start rounded-lg border bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50"
           >
@@ -281,25 +256,24 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                       setActiveScene(0);
                       requestAnimationFrame(() => {
                         const el = sceneRefs.current[0];
-                        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
                       });
                     } else {
                       setActiveScene(null);
-                      requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
+                      requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                     }
                   }}
                   className={`flex-shrink-0 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
-                    filterChar === char.name ? 'bg-gray-100 font-medium' : ''
+                    filterChar === char.name ? "bg-gray-100 font-medium" : ""
                   }`}
                 >
-                  <span
-                    className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}
-                  >
+                  <span className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}>
                     {char.name}
                   </span>
                   <div className="mt-1 text-[10px] leading-tight text-gray-600">
                     <div>{char.sceneCount} scenes</div>
                     <div>{char.dialogueCount} dialogues</div>
+                    <div className="truncate">Scenes: {char.scenes.join(", ")}</div>
                   </div>
                 </button>
               ))}
@@ -320,23 +294,22 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                       setActiveScene(0);
                       requestAnimationFrame(() => {
                         const el = sceneRefs.current[0];
-                        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
                       });
                     } else {
                       setActiveScene(null);
-                      requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
+                      requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                     }
                   }}
                   className={`flex-shrink-0 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
-                    filterChar === char.name ? 'bg-gray-100 font-medium' : ''
+                    filterChar === char.name ? "bg-gray-100 font-medium" : ""
                   }`}
                 >
-                  <span className="block rounded px-1 font-semibold bg-gray-200 text-gray-800">
-                    {char.name}
-                  </span>
+                  <span className="block rounded px-1 font-semibold bg-gray-200 text-gray-800">{char.name}</span>
                   <div className="mt-1 text-[10px] leading-tight text-gray-600">
                     <div>{char.sceneCount} scenes</div>
                     <div>{char.dialogueCount} dialogues</div>
+                    <div className="truncate">Scenes: {char.scenes.join(", ")}</div>
                   </div>
                 </button>
               ))}
@@ -360,13 +333,11 @@ function Part({
   colorMap: Record<string, string>;
   highlight: (text: string) => React.ReactNode[];
 }) {
-  if (part.type === 'dialogue') {
+  if (part.type === "dialogue") {
     return (
       <div>
         <div className="mb-1 text-center">
-          <span
-            className={`rounded px-2 ${colorMap[part.character]} text-gray-800 font-semibold`}
-          >
+          <span className={`rounded px-2 ${colorMap[part.character]} text-gray-800 font-semibold`}>
             {part.character}
           </span>
         </div>
@@ -376,4 +347,3 @@ function Part({
   }
   return <p>{highlight(part.text)}</p>;
 }
-
