@@ -47,7 +47,10 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-screen flex-col items-center overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
+    <main
+      className="flex h-screen flex-col items-center overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
+      style={{ height: '100dvh' }}
+    >
       <div className="w-full max-w-5xl flex h-full flex-col p-6 overflow-hidden">
         <h1 className="text-center text-4xl font-light tracking-tight text-gray-900">
           scenariOS

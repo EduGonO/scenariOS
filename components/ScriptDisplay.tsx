@@ -26,6 +26,7 @@ const COLORS = [
 export default function ScriptDisplay({ scenes, characters }: Props) {
   const [activeScene, setActiveScene] = useState<number | null>(null);
   const [filterChar, setFilterChar] = useState<string | null>(null);
+  const [showReset, setShowReset] = useState(false);
   const viewerRef = useRef<HTMLDivElement>(null);
   const sceneRefs = useRef<HTMLDivElement[]>([]);
 
@@ -40,6 +41,10 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
   const filteredScenes = filterChar
     ? scenes.filter((s) => s.characters.includes(filterChar))
     : scenes;
+
+  useEffect(() => {
+    if (!filterChar) setShowReset(false);
+  }, [filterChar]);
 
   useEffect(() => {
     if (!viewerRef.current) return;
@@ -104,15 +109,33 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
       style={{ fontFamily: 'Courier, monospace' }}
     >
       <div className="mb-4 flex justify-center">
-        <div className="rounded-full bg-white/80 px-4 py-1 text-sm font-medium text-gray-700 shadow-sm backdrop-blur">
-          {filterChar ? (
-            <>
-              Scenes with <span className="font-semibold">{filterChar}</span> ({
-                filteredScenes.length
-              })
-            </>
-          ) : (
-            <>All {scenes.length} scenes</>
+        <div className="relative">
+          <button
+            onClick={() => filterChar && setShowReset((v) => !v)}
+            className="rounded-full bg-white/70 px-5 py-1.5 text-sm font-medium text-gray-800 shadow-sm backdrop-blur transition hover:bg-white/90"
+          >
+            {filterChar ? (
+              <>
+                Scenes with <span className="font-semibold">{filterChar}</span> ({
+                  filteredScenes.length
+                })
+              </>
+            ) : (
+              <>All {scenes.length} scenes</>
+            )}
+          </button>
+          {showReset && filterChar && (
+            <button
+              aria-label="reset"
+              onClick={() => {
+                setFilterChar(null);
+                setActiveScene(null);
+                setShowReset(false);
+              }}
+              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-gray-800 text-white shadow"
+            >
+              ×
+            </button>
           )}
         </div>
       </div>
@@ -170,7 +193,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                 data-index={idx}
                 className="relative"
               >
-                <div className="sticky top-0 -mx-6 border-b border-gray-200 bg-white/90 px-6 py-2 backdrop-blur z-10">
+                <div className="sticky top-0 z-10 rounded-b-xl border-b border-gray-200 bg-white/60 px-6 py-3 backdrop-blur-sm">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold text-gray-700">{`${displayNumber}. ${rest}`}</span>
                     {type && (
@@ -178,7 +201,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                         {type}
                       </span>
                     )}
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 min-h-[1.25rem]">
                       {scene.characters.map((c) => (
                         <span
                           key={c}
@@ -207,40 +230,57 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           })}
         </div>
       </div>
-      <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
-        {displayedChars.map((char) => (
+      <div className="mt-4 flex gap-4 overflow-x-auto pb-2 min-h-[7rem]">
+        {filterChar && (
           <button
-            key={char.name}
             onClick={() => {
-              const next = filterChar === char.name ? null : char.name;
-              setFilterChar(next);
-              if (next) {
-                setActiveScene(0);
-                setTimeout(() => {
-                  sceneRefs.current[0]?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                  });
-                }, 0);
-              } else {
-                setActiveScene(null);
-              }
+              setFilterChar(null);
+              setActiveScene(null);
             }}
-            className={`flex-shrink-0 rounded-lg border bg-white px-3 py-2 text-left hover:bg-gray-50 ${
-              filterChar === char.name ? 'bg-gray-100 font-medium' : ''
-            }`}
+            className="flex-shrink-0 rounded-lg border bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:bg-gray-50"
           >
-            <span
-              className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}
-            >
-              {char.name}
-            </span>
-            <div className="mt-1 text-xs text-gray-600">
-              <div>{char.sceneCount} scenes</div>
-              <div>{char.dialogueCount} dialogues</div>
-            </div>
+            Reset
           </button>
-        ))}
+        )}
+        {displayedChars.length ? (
+          displayedChars.map((char) => (
+            <button
+              key={char.name}
+              onClick={() => {
+                const next = filterChar === char.name ? null : char.name;
+                setFilterChar(next);
+                if (next) {
+                  setActiveScene(0);
+                  setTimeout(() => {
+                    sceneRefs.current[0]?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'start',
+                    });
+                  }, 0);
+                } else {
+                  setActiveScene(null);
+                }
+              }}
+              className={`flex-shrink-0 rounded-lg border bg-white px-3 py-2 text-left hover:bg-gray-50 ${
+                filterChar === char.name ? 'bg-gray-100 font-medium' : ''
+              }`}
+            >
+              <span
+                className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}
+              >
+                {char.name}
+              </span>
+              <div className="mt-1 text-xs text-gray-600">
+                <div>{char.sceneCount} scenes</div>
+                <div>{char.dialogueCount} dialogues</div>
+              </div>
+            </button>
+          ))
+        ) : (
+          <div className="flex items-center text-sm text-gray-500">
+            No characters
+          </div>
+        )}
       </div>
     </div>
   );
