@@ -6,6 +6,7 @@ import { Scene, parseScript } from '../utils/parseScript';
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [scenes, setScenes] = useState<Scene[]>([]);
+  const [characters, setCharacters] = useState<string[]>([]);
 
   async function processFile(file: File) {
     setLoading(true);
@@ -18,8 +19,11 @@ export default function Home() {
         body: JSON.stringify({ file: base64 }),
       });
       const data = await res.json();
-      const parsed = parseScript(data.text ?? '');
-      setScenes(parsed);
+      const { scenes: parsedScenes, characters: parsedChars } = parseScript(
+        data.text ?? ''
+      );
+      setScenes(parsedScenes);
+      setCharacters(parsedChars);
       setLoading(false);
     };
     reader.readAsDataURL(file);
@@ -32,7 +36,7 @@ export default function Home() {
           Upload Film Script
         </h1>
         <FileUploader onFile={processFile} loading={loading} />
-        <ScriptDisplay scenes={scenes} />
+        <ScriptDisplay scenes={scenes} characters={characters} />
       </div>
     </main>
   );
