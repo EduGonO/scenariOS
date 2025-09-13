@@ -145,7 +145,7 @@ export default function McpTester() {
             <h2 className="mb-2 font-medium">Query Scenes</h2>
             <input
               className="mb-2 rounded border p-2"
-              placeholder="Natural language query"
+              placeholder="e.g. give me all scenes with Paul and Ana"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />

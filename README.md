@@ -33,5 +33,5 @@ Set `MISTRAL_API_KEY` and test the MCP endpoint with the inspector:
 MISTRAL_API_KEY=your_key npm run inspector
 ```
 
-Use `parse_scene` to add scenes, `search_scenes` for structured filters, or `query_scenes` with natural language like "night scenes with Paul and Alina at the beach".
+Use `parse_scene` to add scenes, `search_scenes` for structured filters, or `query_scenes` with natural language like "give me all scenes with Paul and Ana".
 

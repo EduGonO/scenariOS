@@ -27,7 +27,7 @@ async function parseWithMistral(text: string) {
         {
           role: "user",
           content:
-            `Extract scene metadata as JSON with keys setting (INT or EXT), location, time, characters (array). Scene: ${text}`,
+            `Extract scene metadata as JSON with keys setting (INT or EXT), location, time, characters (array of uppercase names). Scene: ${text}`,
         },
       ],
       response_format: { type: "json_object" },
@@ -54,7 +54,12 @@ export const getServer = (): McpServer => {
     },
     async ({ id, text }): Promise<CallToolResult> => {
       const meta = await parseWithMistral(text);
-      const scene = { id, raw: text, ...meta };
+      const scene = {
+        id,
+        raw: text,
+        ...meta,
+        characters: meta.characters.map((c) => c.toUpperCase()),
+      };
       sceneStore.push(scene);
       return {
         content: [{ type: "text", text: JSON.stringify(scene) }],
@@ -76,7 +81,7 @@ export const getServer = (): McpServer => {
       (!setting || s.setting === setting) &&
       (!location || s.location.toLowerCase().includes(location.toLowerCase())) &&
       (!time || s.time.toLowerCase().includes(time.toLowerCase())) &&
-      (!characters || characters.every((c) => s.characters.includes(c))),
+      (!characters || characters.every((c) => s.characters.includes(c.toUpperCase()))),
     );
   }
 
@@ -85,7 +90,10 @@ export const getServer = (): McpServer => {
     "Search previously parsed scenes",
     searchShape,
     async (params: SearchParams): Promise<CallToolResult> => {
-      const results = filterScenes(params);
+      const results = filterScenes({
+        ...params,
+        characters: params.characters?.map((c) => c.toUpperCase()),
+      });
       return { content: [{ type: "text", text: JSON.stringify(results) }] };
     },
   );
@@ -108,7 +116,7 @@ export const getServer = (): McpServer => {
           messages: [
             {
               role: "user",
-              content: `Extract search filters as JSON with keys setting (INT or EXT), location, time, characters (array). Query: ${query}`,
+              content: `Extract search filters as JSON with keys setting (INT or EXT), location, time, characters (array of uppercase names). Query: ${query}`,
             },
           ],
           response_format: { type: "json_object" },
@@ -118,7 +126,10 @@ export const getServer = (): McpServer => {
       const data = await res.json();
       const content = data.choices?.[0]?.message?.content ?? "{}";
       const params = searchSchema.parse(JSON.parse(content));
-      const results = filterScenes(params);
+      const results = filterScenes({
+        ...params,
+        characters: params.characters?.map((c) => c.toUpperCase()),
+      });
       return { content: [{ type: "text", text: JSON.stringify(results) }] };
     },
   );
