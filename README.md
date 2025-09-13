@@ -35,5 +35,7 @@ Set `MISTRAL_API_KEY` in your environment (server runtime) and test the MCP endp
 MISTRAL_API_KEY=your_key npm run inspector
 ```
 
-Use `parse_scene` to add scenes, `search_scenes` for structured filters, or `query_scenes` with natural language like "give me all scenes with Paul and Ana".
+Point the inspector's Streamable HTTP URL at `http://localhost:3000/mcp`
+or your deployed application's `/mcp` endpoint.
 
+Use `parse_scene` to add scenes, `search_scenes` for structured filters, or `query_scenes` with natural language like "give me all scenes with Paul and Ana".
