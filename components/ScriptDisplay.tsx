@@ -1,9 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Scene, ScenePart, cleanName } from '../utils/parseScript';
+import {
+  Scene,
+  ScenePart,
+  CharacterStats,
+  cleanName,
+} from '../utils/parseScript';
 
 interface Props {
   scenes: Scene[];
-  characters: string[];
+  characters: CharacterStats[];
 }
 
 const COLORS = [
@@ -25,7 +30,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
   const colorMap = useMemo(() => {
     const map: Record<string, string> = {};
     characters.forEach((c, i) => {
-      map[c] = COLORS[i % COLORS.length];
+      map[c.name] = COLORS[i % COLORS.length];
     });
     return map;
   }, [characters]);
@@ -37,7 +42,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
   const active = filteredScenes[activeScene];
 
   function normalize(tok: string) {
-    return cleanName(tok.replace(/[^A-Z0-9'().-]/g, '').toUpperCase()).replace(/'S?$/, '');
+    return cleanName(tok.toUpperCase()).replace(/'S?$/, '');
   }
 
   function highlight(text: string) {
@@ -85,19 +90,22 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         <div className="col-span-1 h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white">
           {characters.map((char) => (
             <button
-              key={char}
+              key={char.name}
               onClick={() => {
-                setFilterChar((prev) => (prev === char ? null : char));
+                setFilterChar((prev) => (prev === char.name ? null : char.name));
                 setActiveScene(0);
               }}
               className={`block w-full border-b px-4 py-2 text-left hover:bg-gray-50 ${
-                filterChar === char ? 'bg-gray-100 font-medium' : ''
+                filterChar === char.name ? 'bg-gray-100 font-medium' : ''
               }`}
             >
               <span
-                className={`rounded px-1 font-semibold ${colorMap[char]} text-gray-800`}
+                className={`rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}
               >
-                {char}
+                {char.name}
+              </span>
+              <span className="ml-2 text-xs text-gray-600">
+                {char.sceneCount} scenes / {char.dialogueCount} dialogues
               </span>
             </button>
           ))}

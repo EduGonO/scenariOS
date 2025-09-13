@@ -18,23 +18,43 @@ export interface Scene {
   characters: string[];
 }
 
+export interface CharacterStats {
+  name: string;
+  sceneCount: number;
+  dialogueCount: number;
+}
+
 const HEADING_REGEX = /^(\s*)(\d+\.?\s*)?(INT\.\/EXT\.|EXT\/INT\.|INT\/EXT|EXT\/INT|INT\.|EXT\.)\s*(.*)$/i;
 const CHAR_LINE_REGEX = /^\s{0,20}([A-Z][A-Z0-9\s'().-]+)$/;
-const STOP_WORDS = new Set(['INT', 'EXT', 'CUT', 'FADE', 'DAY', 'NIGHT', 'TO', 'THE', 'A', 'AN', 'AND']);
+const STOP_WORDS = new Set([
+  'INT',
+  'EXT',
+  'CUT',
+  'FADE',
+  'DAY',
+  'NIGHT',
+  'TO',
+  'THE',
+  'A',
+  'AN',
+  'AND',
+]);
 
 export function cleanName(raw: string): string {
   return raw
     .replace(/\s*\([^)]*\)/g, '')
+    .replace(/[^A-Z0-9'\s]/gi, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .toUpperCase();
 }
 
 export function parseScript(text: string): {
   scenes: Scene[];
-  characters: string[];
+  characters: CharacterStats[];
 } {
   const scenes: Scene[] = [];
-  const dialogueCounts = new Map<string, number>();
+  const charStats = new Map<string, { sceneCount: number; dialogueCount: number }>();
 
   let current: Scene | null = null;
   let currentDialogue: Dialogue | null = null;
@@ -44,8 +64,11 @@ export function parseScript(text: string): {
     if (!current || !currentDialogue) return;
     if (currentDialogue.text.trim()) {
       sceneCharacters.add(currentDialogue.character);
-      const count = dialogueCounts.get(currentDialogue.character) || 0;
-      dialogueCounts.set(currentDialogue.character, count + 1);
+      const stat =
+        charStats.get(currentDialogue.character) ||
+        { sceneCount: 0, dialogueCount: 0 };
+      stat.dialogueCount += 1;
+      charStats.set(currentDialogue.character, stat);
       current.parts.push(currentDialogue);
     } else {
       current.parts.push({ type: 'direction', text: currentDialogue.character });
@@ -64,6 +87,13 @@ export function parseScript(text: string): {
         pushCurrentDialogue();
         current.characters = Array.from(sceneCharacters);
         scenes.push(current);
+        for (const name of Array.from(sceneCharacters)) {
+          const stat = charStats.get(name);
+          if (stat) {
+            stat.sceneCount += 1;
+            charStats.set(name, stat);
+          }
+        }
       }
       const number = headingMatch[2]?.trim().replace(/\.$/, '') || undefined;
       const heading = `${headingMatch[3]} ${headingMatch[4].trim()}`.trim();
@@ -98,7 +128,11 @@ export function parseScript(text: string): {
     }
 
     current.parts.push({ type: 'direction', text: trimmed });
-    const caps = trimmed.match(/[A-Z][A-Z0-9]+(?:\s+[A-Z][A-Z0-9]+)*/g) || [];
+    if (/CUT TO(\s|:)/i.test(trimmed)) {
+      continue;
+    }
+    const caps =
+      trimmed.match(/[A-Z][A-Z0-9'.-]*(?:\s+[A-Z][A-Z0-9'.-]*)*/g) || [];
     for (const word of caps) {
       const name = cleanName(word.trim());
       if (!STOP_WORDS.has(name) && name.length > 1) {
@@ -111,10 +145,19 @@ export function parseScript(text: string): {
     pushCurrentDialogue();
     current.characters = Array.from(sceneCharacters);
     scenes.push(current);
+    for (const name of Array.from(sceneCharacters)) {
+      const stat = charStats.get(name);
+      if (stat) {
+        stat.sceneCount += 1;
+        charStats.set(name, stat);
+      }
+    }
   }
+  const characters: CharacterStats[] = Array.from(charStats.entries())
+    .map(([name, stat]) => ({ name, sceneCount: stat.sceneCount, dialogueCount: stat.dialogueCount }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  const characters = Array.from(dialogueCounts.keys()).sort();
-  const charSet = new Set(characters);
+  const charSet = new Set(characters.map((c) => c.name));
   for (const scene of scenes) {
     scene.characters = scene.characters.filter((c) => charSet.has(c));
   }

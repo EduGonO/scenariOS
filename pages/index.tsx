@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import FileUploader from '../components/FileUploader';
 import ScriptDisplay from '../components/ScriptDisplay';
-import { Scene, parseScript } from '../utils/parseScript';
+import { Scene, CharacterStats, parseScript } from '../utils/parseScript';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [characters, setCharacters] = useState<string[]>([]);
+  const [characters, setCharacters] = useState<CharacterStats[]>([]);
 
   async function processFile(file: File) {
     setLoading(true);
