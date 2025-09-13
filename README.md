@@ -19,6 +19,8 @@ npm run dev
 
 The app runs at <http://localhost:3000>. Try uploading a PDF to see extracted text, or open <http://localhost:3000/mcp> to exercise the MCP tools.
 
+For deployments and MCP clients like Mistral's Le Chat, a standalone Express server is built into `dist/index.js` and serves the MCP endpoint at `/mcp`. The server listens on the port defined by `PORT` (or `MCP_HTTP_PORT`), defaulting to `8080` for platforms such as Alpic's AWS Lambda containers.
+
 ## Production build
 
 ```bash
