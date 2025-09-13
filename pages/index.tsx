@@ -66,7 +66,10 @@ export default function Home() {
       ].join("\n");
       await fetch("/api/mcp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
         body: JSON.stringify({
           jsonrpc: "2.0",
           id: Date.now(),

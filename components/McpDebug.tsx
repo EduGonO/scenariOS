@@ -26,7 +26,10 @@ export default function McpDebug() {
       ].join('\n');
       await fetch('/api/mcp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+        },
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: Date.now(),
@@ -52,7 +55,10 @@ export default function McpDebug() {
     try {
       const res = await fetch('/api/mcp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -126,6 +132,7 @@ export default function McpDebug() {
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('scenes') : null;
     if (stored) {
+      setMetaResult(JSON.stringify(JSON.parse(stored), null, 2));
       const scenes: Scene[] = JSON.parse(stored);
       registerScenes(scenes).then(refreshMeta);
     } else {
