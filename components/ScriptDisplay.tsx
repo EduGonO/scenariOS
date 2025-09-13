@@ -74,17 +74,28 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.number || originalIdx + 1;
+            const match = scene.heading.match(/^(INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)(.*)$/i);
+            const type = match ? match[1].toUpperCase() : '';
+            const rest = match ? match[2].trim() : scene.heading;
             return (
-            <button
-              key={idx}
-              onClick={() => setActiveScene(idx)}
-              className={`block w-full border-b px-4 py-2 text-left hover:bg-gray-50 ${
-                activeScene === idx ? 'bg-gray-100 font-medium' : ''
-              }`}
-            >
-              {displayNumber}. {scene.heading}
-            </button>
-          );
+              <button
+                key={idx}
+                onClick={() => setActiveScene(idx)}
+                className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 ${
+                  activeScene === idx ? 'bg-gray-100 font-medium' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">{displayNumber}</span>
+                  {type && (
+                    <span className="rounded bg-gray-200 px-1 text-[10px] font-semibold text-gray-700">
+                      {type}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-gray-700">{rest}</div>
+              </button>
+            );
           })}
         </div>
         <div className="col-span-1 h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white">
@@ -95,7 +106,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                 setFilterChar((prev) => (prev === char.name ? null : char.name));
                 setActiveScene(0);
               }}
-              className={`block w-full border-b px-4 py-2 text-left hover:bg-gray-50 ${
+              className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 ${
                 filterChar === char.name ? 'bg-gray-100 font-medium' : ''
               }`}
             >
@@ -104,9 +115,10 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
               >
                 {char.name}
               </span>
-              <span className="ml-2 text-xs text-gray-600">
-                {char.sceneCount} scenes / {char.dialogueCount} dialogues
-              </span>
+              <div className="mt-1 text-xs text-gray-600">
+                <div>{char.sceneCount} scenes</div>
+                <div>{char.dialogueCount} dialogues</div>
+              </div>
             </button>
           ))}
         </div>

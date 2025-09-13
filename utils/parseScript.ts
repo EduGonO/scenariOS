@@ -25,7 +25,7 @@ export interface CharacterStats {
 }
 
 const HEADING_REGEX = /^(\s*)(\d+\.?\s*)?(INT\.\/EXT\.|EXT\/INT\.|INT\/EXT|EXT\/INT|INT\.|EXT\.)\s*(.*)$/i;
-const CHAR_LINE_REGEX = /^\s{0,20}([A-Z][A-Z0-9\s'().-]+)$/;
+const CHAR_LINE_REGEX = /^\s{0,20}([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9\s'().-]+)$/;
 const STOP_WORDS = new Set([
   'INT',
   'EXT',
@@ -42,8 +42,9 @@ const STOP_WORDS = new Set([
 
 export function cleanName(raw: string): string {
   return raw
+    .normalize('NFC')
     .replace(/\s*\([^)]*\)/g, '')
-    .replace(/[^A-Z0-9'\s]/gi, ' ')
+    .replace(/[^A-Za-zÀ-ÖØ-öø-ÿ0-9'\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase();
@@ -132,7 +133,7 @@ export function parseScript(text: string): {
       continue;
     }
     const caps =
-      trimmed.match(/[A-Z][A-Z0-9'.-]*(?:\s+[A-Z][A-Z0-9'.-]*)*/g) || [];
+      trimmed.match(/[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'.-]*(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'.-]*)*/g) || [];
     for (const word of caps) {
       const name = cleanName(word.trim());
       if (!STOP_WORDS.has(name) && name.length > 1) {
@@ -154,7 +155,12 @@ export function parseScript(text: string): {
     }
   }
   const characters: CharacterStats[] = Array.from(charStats.entries())
-    .map(([name, stat]) => ({ name, sceneCount: stat.sceneCount, dialogueCount: stat.dialogueCount }))
+    .map(([name, stat]) => ({
+      name,
+      sceneCount: stat.sceneCount,
+      dialogueCount: stat.dialogueCount,
+    }))
+    .filter((c) => !c.name.includes('CUT TO'))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const charSet = new Set(characters.map((c) => c.name));
