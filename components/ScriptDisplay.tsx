@@ -76,7 +76,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
       const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
       container.scrollTo({ top, behavior: 'smooth' });
     }
-  }, [activeScene]);
+  }, [activeScene, filteredScenes.length]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: 0 });
@@ -177,13 +177,10 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                 key={idx}
                 onClick={() => {
                   setActiveScene(idx);
-                  const el = sceneRefs.current[idx];
-                  if (el && viewerRef.current) {
-                    viewerRef.current.scrollTo({
-                      top: el.offsetTop,
-                      behavior: 'smooth',
-                    });
-                  }
+                  requestAnimationFrame(() => {
+                    const el = sceneRefs.current[idx];
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  });
                 }}
                 className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
                   activeScene === idx ? 'bg-gray-100 font-medium' : ''
@@ -257,7 +254,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           })}
         </div>
       </div>
-      <div className="mt-4 -mx-6 flex items-start gap-6 overflow-x-auto px-6 pb-3 scroll-px-6 min-h-[5rem]">
+      <div className="mt-4 flex items-start gap-6 overflow-x-auto pb-3 scroll-px-6 min-h-[5rem] [&>*:first-child]:pl-6 [&>*:last-child]:pr-6">
         {filterChar && (
           <button
             onClick={() => {
@@ -272,7 +269,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         )}
         {presentChars.length ? (
           <div className="flex flex-col gap-1 flex-none">
-            <span className="sticky left-0 z-10 bg-white text-[10px] text-gray-500">Characters present</span>
+            <span className="sticky left-0 z-10 text-[10px] text-gray-500">Characters present</span>
             <div className="flex gap-4">
               {presentChars.map((char) => (
                 <button
@@ -284,12 +281,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                       setActiveScene(0);
                       requestAnimationFrame(() => {
                         const el = sceneRefs.current[0];
-                        if (el && viewerRef.current) {
-                          viewerRef.current.scrollTo({
-                            top: el.offsetTop,
-                            behavior: 'smooth',
-                          });
-                        }
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       });
                     } else {
                       setActiveScene(null);
@@ -316,7 +308,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         ) : null}
         {otherChars.length ? (
           <div className="flex flex-col gap-1 flex-none">
-            <span className="sticky left-0 z-10 bg-white text-[10px] text-gray-400">Other characters</span>
+            <span className="sticky left-0 z-10 text-[10px] text-gray-400">Other characters</span>
             <div className="flex gap-4 opacity-40 grayscale">
               {otherChars.map((char) => (
                 <button
@@ -328,12 +320,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                       setActiveScene(0);
                       requestAnimationFrame(() => {
                         const el = sceneRefs.current[0];
-                        if (el && viewerRef.current) {
-                          viewerRef.current.scrollTo({
-                            top: el.offsetTop,
-                            behavior: 'smooth',
-                          });
-                        }
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       });
                     } else {
                       setActiveScene(null);
