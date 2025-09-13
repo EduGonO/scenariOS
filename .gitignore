@@ -34,6 +34,7 @@ yarn-error.log*
 *.cjs.map
 *.d.ts.map
 *.d.ts
+!next-env.d.ts
 !*.d.ts.template
 *.tgz
 .eslintcache
@@ -101,6 +102,7 @@ target/
 build/
 dist/
 out/
+.next/
 
 # =============================================================================
 # COMPILED FILES
