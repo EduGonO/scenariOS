@@ -28,7 +28,6 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
   const [filterChar, setFilterChar] = useState<string | null>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
   const sceneRefs = useRef<HTMLDivElement[]>([]);
-  const interacted = useRef(false);
 
   const colorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -42,23 +41,10 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
     ? scenes.filter((s) => s.characters.includes(filterChar))
     : scenes;
 
-  const navScene = activeScene !== null ? filteredScenes[activeScene] : null;
-  const navOriginalIdx = navScene ? scenes.indexOf(navScene) : null;
-  const navDisplayNumber =
-    navScene && navOriginalIdx !== null
-      ? navScene.number || navOriginalIdx + 1
-      : null;
-  const navMatch = navScene
-    ? navScene.heading.match(/^(INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)(.*)$/i)
-    : null;
-  const navType = navMatch ? navMatch[1].toUpperCase() : '';
-  const navRest = navMatch ? navMatch[2].trim() : navScene?.heading;
-
   useEffect(() => {
     if (!viewerRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!interacted.current) return;
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const idx = Number((entry.target as HTMLElement).dataset.index);
@@ -66,7 +52,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           }
         });
       },
-      { root: viewerRef.current, threshold: 0.5 }
+      { root: viewerRef.current, threshold: 0, rootMargin: '0px 0px -80% 0px' }
     );
 
     sceneRefs.current.forEach((el) => observer.observe(el));
@@ -117,31 +103,18 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
       className="flex h-full flex-col overflow-hidden"
       style={{ fontFamily: 'Courier, monospace' }}
     >
-      <div className="mb-2 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-600">
-        {filterChar ? (
-          <>
-            Scenes with <span className="font-semibold text-gray-700">{filterChar}</span>
-          </>
-        ) : navScene ? (
-          <>
-            <span className="font-semibold text-gray-700">{`${navDisplayNumber}. ${navRest}`}</span>
-            {navType && (
-              <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">{navType}</span>
-            )}
-            <div className="flex flex-wrap gap-1">
-              {navScene.characters.map((c) => (
-                <span
-                  key={c}
-                  className={`rounded px-1 text-xs font-medium ${colorMap[c]} text-gray-800`}
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-          </>
-        ) : (
-          'All Scenes'
-        )}
+      <div className="mb-4 flex justify-center">
+        <div className="rounded-full bg-white/80 px-4 py-1 text-sm font-medium text-gray-700 shadow-sm backdrop-blur">
+          {filterChar ? (
+            <>
+              Scenes with <span className="font-semibold">{filterChar}</span> ({
+                filteredScenes.length
+              })
+            </>
+          ) : (
+            <>All {scenes.length} scenes</>
+          )}
+        </div>
       </div>
       <div className="flex flex-1 gap-6 overflow-hidden">
         <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white">
@@ -155,7 +128,6 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
               <button
                 key={idx}
                 onClick={() => {
-                  interacted.current = true;
                   setActiveScene(idx);
                   sceneRefs.current[idx]?.scrollIntoView({
                     behavior: 'smooth',
@@ -181,9 +153,6 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         </div>
         <div
           ref={viewerRef}
-          onScroll={() => {
-            interacted.current = true;
-          }}
           className="flex-1 overflow-y-auto p-6 space-y-8"
         >
           {filteredScenes.map((scene, idx) => {
@@ -199,27 +168,29 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                   if (el) sceneRefs.current[idx] = el;
                 }}
                 data-index={idx}
-                className="space-y-4"
+                className="relative"
               >
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="font-semibold text-gray-700">{`${displayNumber}. ${rest}`}</span>
-                  {type && (
-                    <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">
-                      {type}
-                    </span>
-                  )}
-                  <div className="flex flex-wrap gap-1">
-                    {scene.characters.map((c) => (
-                      <span
-                        key={c}
-                        className={`rounded px-1 text-xs font-medium ${colorMap[c]} text-gray-800`}
-                      >
-                        {c}
+                <div className="sticky top-0 -mx-6 border-b border-gray-200 bg-white/90 px-6 py-2 backdrop-blur z-10">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-semibold text-gray-700">{`${displayNumber}. ${rest}`}</span>
+                    {type && (
+                      <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">
+                        {type}
                       </span>
-                    ))}
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {scene.characters.map((c) => (
+                        <span
+                          key={c}
+                          className={`rounded px-1 text-xs font-medium ${colorMap[c]} text-gray-800`}
+                        >
+                          {c}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                   <div className="space-y-4 text-gray-700">
                     {scene.parts.map((part, pIdx) => (
                       <Part
@@ -243,15 +214,16 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
             onClick={() => {
               const next = filterChar === char.name ? null : char.name;
               setFilterChar(next);
-              interacted.current = false;
-              setActiveScene(null);
               if (next) {
+                setActiveScene(0);
                 setTimeout(() => {
                   sceneRefs.current[0]?.scrollIntoView({
                     behavior: 'smooth',
                     block: 'start',
                   });
                 }, 0);
+              } else {
+                setActiveScene(null);
               }
             }}
             className={`flex-shrink-0 rounded-lg border bg-white px-3 py-2 text-left hover:bg-gray-50 ${

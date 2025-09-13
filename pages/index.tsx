@@ -34,7 +34,8 @@ export default function Home() {
   }
 
   function extractMetadata(text: string): [string, string] {
-    const firstPage = text.split('\f')[0] || text;
+    const pages = text.split('\f');
+    const firstPage = pages.find((p) => p.trim().length) || '';
     const lines = firstPage
       .split(/\r?\n/)
       .map((l) => l.trim())
@@ -46,7 +47,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-screen flex-col items-center bg-gradient-to-br from-gray-50 to-gray-200">
+    <main className="flex h-screen flex-col items-center overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
       <div className="w-full max-w-5xl flex h-full flex-col p-6 overflow-hidden">
         <h1 className="text-center text-4xl font-light tracking-tight text-gray-900">
           scenariOS
@@ -59,13 +60,13 @@ export default function Home() {
             <FileUploader onFile={processFile} loading={loading} />
           </>
         ) : (
-          <div className="mt-4 space-y-1 text-center">
-            <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
+          <div className="mt-6 mb-2 text-center">
+            <h2 className="text-3xl font-semibold text-gray-900">{title}</h2>
             <p className="text-gray-600">by {author}</p>
           </div>
         )}
         {scenes.length > 0 && (
-          <div className="mt-4 flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden">
             <ScriptDisplay scenes={scenes} characters={characters} />
           </div>
         )}
