@@ -42,6 +42,18 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
     ? scenes.filter((s) => s.characters.includes(filterChar))
     : scenes;
 
+  const navScene = activeScene !== null ? filteredScenes[activeScene] : null;
+  const navOriginalIdx = navScene ? scenes.indexOf(navScene) : null;
+  const navDisplayNumber =
+    navScene && navOriginalIdx !== null
+      ? navScene.number || navOriginalIdx + 1
+      : null;
+  const navMatch = navScene
+    ? navScene.heading.match(/^(INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)(.*)$/i)
+    : null;
+  const navType = navMatch ? navMatch[1].toUpperCase() : '';
+  const navRest = navMatch ? navMatch[2].trim() : navScene?.heading;
+
   useEffect(() => {
     if (!viewerRef.current) return;
     const observer = new IntersectionObserver(
@@ -102,82 +114,129 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
 
   return (
     <div
-      className="grid grid-cols-5 grid-rows-[1fr_auto] gap-6"
+      className="flex h-full flex-col overflow-hidden"
       style={{ fontFamily: 'Courier, monospace' }}
     >
-      <div className="col-span-1 row-span-1 h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white">
-        {filteredScenes.map((scene, idx) => {
-          const originalIdx = scenes.indexOf(scene);
-          const displayNumber = scene.number || originalIdx + 1;
-          const match = scene.heading.match(/^(INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)(.*)$/i);
-          const type = match ? match[1].toUpperCase() : '';
-          const rest = match ? match[2].trim() : scene.heading;
-          return (
-            <button
-              key={idx}
-              onClick={() => {
-                interacted.current = true;
-                setActiveScene(idx);
-                sceneRefs.current[idx]?.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'start',
-                });
-              }}
-              className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 ${
-                activeScene === idx ? 'bg-gray-100 font-medium' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">{displayNumber}</span>
-                {type && (
-                  <span className="rounded bg-gray-200 px-1 text-[10px] font-semibold text-gray-700">
-                    {type}
-                  </span>
-                )}
-              </div>
-              <div className="mt-1 text-xs text-gray-700">{rest}</div>
-            </button>
-          );
-        })}
+      <div className="mb-2 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-600">
+        {filterChar ? (
+          <>
+            Scenes with <span className="font-semibold text-gray-700">{filterChar}</span>
+          </>
+        ) : navScene ? (
+          <>
+            <span className="font-semibold text-gray-700">{`${navDisplayNumber}. ${navRest}`}</span>
+            {navType && (
+              <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">{navType}</span>
+            )}
+            <div className="flex flex-wrap gap-1">
+              {navScene.characters.map((c) => (
+                <span
+                  key={c}
+                  className={`rounded px-1 text-xs font-medium ${colorMap[c]} text-gray-800`}
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          'All Scenes'
+        )}
       </div>
-      <div
-        ref={viewerRef}
-        onScroll={() => {
-          interacted.current = true;
-        }}
-        className="col-span-4 row-span-1 h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 space-y-8"
-      >
-        {filteredScenes.map((scene, idx) => {
-          const originalIdx = scenes.indexOf(scene);
-          const displayNumber = scene.number || originalIdx + 1;
-          return (
-            <div
-              key={idx}
-              ref={(el) => {
-                if (el) sceneRefs.current[idx] = el;
-              }}
-              data-index={idx}
-              className="space-y-4"
-            >
-              <div className="text-sm text-gray-500">{displayNumber}</div>
-              <div className="rounded border border-gray-200 bg-white p-4 shadow-sm">
-                <h2 className="mb-4 text-lg font-semibold text-gray-800">{scene.heading}</h2>
-                <div className="space-y-4 text-gray-700">
-                  {scene.parts.map((part, pIdx) => (
-                    <Part
-                      key={pIdx}
-                      part={part}
-                      colorMap={colorMap}
-                      highlight={highlight}
-                    />
-                  ))}
+      <div className="flex flex-1 gap-6 overflow-hidden">
+        <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white">
+          {filteredScenes.map((scene, idx) => {
+            const originalIdx = scenes.indexOf(scene);
+            const displayNumber = scene.number || originalIdx + 1;
+            const match = scene.heading.match(/^(INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)(.*)$/i);
+            const type = match ? match[1].toUpperCase() : '';
+            const rest = match ? match[2].trim() : scene.heading;
+            return (
+              <button
+                key={idx}
+                onClick={() => {
+                  interacted.current = true;
+                  setActiveScene(idx);
+                  sceneRefs.current[idx]?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                  });
+                }}
+                className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 ${
+                  activeScene === idx ? 'bg-gray-100 font-medium' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">{displayNumber}</span>
+                  {type && (
+                    <span className="rounded bg-gray-200 px-1 text-[10px] font-semibold text-gray-700">
+                      {type}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-gray-700">{rest}</div>
+              </button>
+            );
+          })}
+        </div>
+        <div
+          ref={viewerRef}
+          onScroll={() => {
+            interacted.current = true;
+          }}
+          className="flex-1 overflow-y-auto p-6 space-y-8"
+        >
+          {filteredScenes.map((scene, idx) => {
+            const originalIdx = scenes.indexOf(scene);
+            const displayNumber = scene.number || originalIdx + 1;
+            const match = scene.heading.match(/^(INT\.|EXT\.|INT\.\/EXT\.|EXT\.\/INT\.)(.*)$/i);
+            const type = match ? match[1].toUpperCase() : '';
+            const rest = match ? match[2].trim() : scene.heading;
+            return (
+              <div
+                key={idx}
+                ref={(el) => {
+                  if (el) sceneRefs.current[idx] = el;
+                }}
+                data-index={idx}
+                className="space-y-4"
+              >
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-semibold text-gray-700">{`${displayNumber}. ${rest}`}</span>
+                  {type && (
+                    <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">
+                      {type}
+                    </span>
+                  )}
+                  <div className="flex flex-wrap gap-1">
+                    {scene.characters.map((c) => (
+                      <span
+                        key={c}
+                        className={`rounded px-1 text-xs font-medium ${colorMap[c]} text-gray-800`}
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="space-y-4 text-gray-700">
+                    {scene.parts.map((part, pIdx) => (
+                      <Part
+                        key={pIdx}
+                        part={part}
+                        colorMap={colorMap}
+                        highlight={highlight}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-      <div className="col-span-5 row-start-2 flex gap-4 overflow-x-auto rounded-xl border border-gray-200 bg-white p-4">
+      <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
         {displayedChars.map((char) => (
           <button
             key={char.name}
@@ -195,7 +254,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                 }, 0);
               }
             }}
-            className={`flex-shrink-0 rounded-lg border px-3 py-2 text-left hover:bg-gray-50 ${
+            className={`flex-shrink-0 rounded-lg border bg-white px-3 py-2 text-left hover:bg-gray-50 ${
               filterChar === char.name ? 'bg-gray-100 font-medium' : ''
             }`}
           >

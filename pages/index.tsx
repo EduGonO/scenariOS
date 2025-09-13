@@ -34,7 +34,11 @@ export default function Home() {
   }
 
   function extractMetadata(text: string): [string, string] {
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const firstPage = text.split('\f')[0] || text;
+    const lines = firstPage
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
     const scriptTitle = lines[0] || 'Untitled';
     const authorLine = lines.find((l) => /^by\s+/i.test(l));
     const scriptAuthor = authorLine ? authorLine.replace(/^by\s+/i, '') : 'Unknown';
@@ -42,26 +46,28 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen items-start justify-center bg-gradient-to-br from-gray-50 to-gray-200 p-6">
-      <div className="w-full max-w-5xl space-y-8">
+    <main className="flex h-screen flex-col items-center bg-gradient-to-br from-gray-50 to-gray-200">
+      <div className="w-full max-w-5xl flex h-full flex-col p-6 overflow-hidden">
         <h1 className="text-center text-4xl font-light tracking-tight text-gray-900">
           scenariOS
         </h1>
         {!scenes.length ? (
           <>
-            <h2 className="text-center text-3xl font-light tracking-tight text-gray-900">
+            <h2 className="mt-8 text-center text-3xl font-light tracking-tight text-gray-900">
               Upload Film Script
             </h2>
             <FileUploader onFile={processFile} loading={loading} />
           </>
         ) : (
-          <div className="space-y-1 text-center">
+          <div className="mt-4 space-y-1 text-center">
             <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
             <p className="text-gray-600">by {author}</p>
           </div>
         )}
         {scenes.length > 0 && (
-          <ScriptDisplay scenes={scenes} characters={characters} />
+          <div className="mt-4 flex-1 overflow-hidden">
+            <ScriptDisplay scenes={scenes} characters={characters} />
+          </div>
         )}
       </div>
     </main>
