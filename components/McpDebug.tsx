@@ -24,7 +24,7 @@ export default function McpDebug() {
           p.type === 'dialogue' ? `${p.character}\n${p.text}` : p.text,
         ),
       ].join('\n');
-      await fetch('/api/mcp', {
+      await fetch('/mcp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +53,7 @@ export default function McpDebug() {
   async function callMcp(body: any, setter: (s: string) => void) {
     setter('');
     try {
-      const res = await fetch('/api/mcp', {
+      const res = await fetch('/mcp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
