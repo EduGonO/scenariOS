@@ -51,22 +51,21 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
     const container = viewerRef.current;
     if (!container) return;
 
-    const onScroll = () => {
-      const top = container.scrollTop + 8;
-      let current = 0;
-      for (let i = sceneRefs.current.length - 1; i >= 0; i--) {
-        const el = sceneRefs.current[i];
-        if (el && el.offsetTop <= top) {
-          current = i;
-          break;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) {
+          const idx = Number((visible[0].target as HTMLElement).dataset.index);
+          setActiveScene(idx);
         }
-      }
-      setActiveScene(current);
-    };
+      },
+      { root: container, threshold: 0.1 }
+    );
 
-    onScroll();
-    container.addEventListener('scroll', onScroll);
-    return () => container.removeEventListener('scroll', onScroll);
+    sceneRefs.current.forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
   }, [filteredScenes]);
 
   useEffect(() => {
@@ -170,10 +169,13 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                 key={idx}
                 onClick={() => {
                   setActiveScene(idx);
-                  sceneRefs.current[idx]?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                  });
+                  const el = sceneRefs.current[idx];
+                  if (el && viewerRef.current) {
+                    viewerRef.current.scrollTo({
+                      top: el.offsetTop,
+                      behavior: 'smooth',
+                    });
+                  }
                 }}
                 className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
                   activeScene === idx ? 'bg-gray-100 font-medium' : ''
@@ -194,7 +196,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         </div>
         <div
           ref={viewerRef}
-          className="flex-1 overflow-y-auto p-6 space-y-8"
+          className="flex-1 overflow-y-auto px-6 pb-6 pt-0 space-y-8"
         >
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
@@ -209,9 +211,8 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                   if (el) sceneRefs.current[idx] = el;
                 }}
                 data-index={idx}
-                className="relative pt-6"
               >
-                <div className="sticky top-0 -mt-6 z-10 rounded-b-xl border-b border-gray-200 bg-white/60 px-6 py-3 backdrop-blur-sm">
+                <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/70 px-6 py-3 backdrop-blur-sm">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold text-gray-700">{`${displayNumber}. ${rest}`}</span>
                     {type && (
@@ -254,6 +255,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
             onClick={() => {
               setFilterChar(null);
               setActiveScene(null);
+              requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
             }}
             className="flex-shrink-0 self-start rounded-lg border bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50"
           >
@@ -272,14 +274,18 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                     setFilterChar(next);
                     if (next) {
                       setActiveScene(0);
-                      setTimeout(() => {
-                        sceneRefs.current[0]?.scrollIntoView({
-                          behavior: 'smooth',
-                          block: 'start',
-                        });
-                      }, 0);
+                      requestAnimationFrame(() => {
+                        const el = sceneRefs.current[0];
+                        if (el && viewerRef.current) {
+                          viewerRef.current.scrollTo({
+                            top: el.offsetTop,
+                            behavior: 'smooth',
+                          });
+                        }
+                      });
                     } else {
                       setActiveScene(null);
+                      requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
                     }
                   }}
                   className={`flex-shrink-0 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
@@ -312,14 +318,18 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                     setFilterChar(next);
                     if (next) {
                       setActiveScene(0);
-                      setTimeout(() => {
-                        sceneRefs.current[0]?.scrollIntoView({
-                          behavior: 'smooth',
-                          block: 'start',
-                        });
-                      }, 0);
+                      requestAnimationFrame(() => {
+                        const el = sceneRefs.current[0];
+                        if (el && viewerRef.current) {
+                          viewerRef.current.scrollTo({
+                            top: el.offsetTop,
+                            behavior: 'smooth',
+                          });
+                        }
+                      });
                     } else {
                       setActiveScene(null);
+                      requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
                     }
                   }}
                   className={`flex-shrink-0 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${

@@ -48,26 +48,20 @@ export default function Home() {
 
   return (
     <main
-      className="flex h-screen flex-col items-center overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
+      className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
       style={{ height: '100dvh' }}
     >
-      <div className="w-full max-w-5xl flex h-full flex-col p-6 overflow-hidden">
-        <h1 className="mx-auto mb-4 rounded-full bg-white/70 px-8 py-3 text-center text-5xl font-light tracking-tight text-gray-900 shadow-sm backdrop-blur">
-          scenariOS
-        </h1>
+      <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden p-6">
+        <h1 className="mb-4 text-left text-2xl font-light tracking-tight text-gray-800">scenariOS</h1>
         {!scenes.length ? (
           <>
-            <h2 className="mt-8 text-center text-3xl font-light tracking-tight text-gray-900">
-              Upload Film Script
-            </h2>
+            <h2 className="mt-8 text-2xl font-light tracking-tight text-gray-900">Upload Film Script</h2>
             <FileUploader onFile={processFile} loading={loading} />
           </>
         ) : (
-          <div className="mt-6 mb-4 text-center">
-            <div className="inline-block rounded-xl bg-white/70 px-8 py-4 shadow-sm backdrop-blur">
-              <h2 className="text-4xl font-semibold text-gray-900">{title}</h2>
-              <p className="mt-1 text-lg text-gray-600">by {author}</p>
-            </div>
+          <div className="mb-4 text-left">
+            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+            <p className="mt-1 text-sm text-gray-600">by {author}</p>
           </div>
         )}
         {scenes.length > 0 && (
