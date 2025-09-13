@@ -6,6 +6,7 @@ Prototype web app for analyzing film scripts using the Model Context Protocol.
 
 - Upload a PDF script and extract text via a minimal OCR endpoint.
 - MCP tools `parse_scene`, `search_scenes`, and `query_scenes` for structured and natural language scene search.
+- Browser-based MCP tester at `/mcp` with streaming results.
 
 ## Development
 
@@ -16,7 +17,7 @@ npm install
 npm run dev
 ```
 
-The app runs at <http://localhost:3000>. Try uploading a PDF to see extracted text.
+The app runs at <http://localhost:3000>. Try uploading a PDF to see extracted text, or open <http://localhost:3000/mcp> to exercise the MCP tools.
 
 ## Production build
 

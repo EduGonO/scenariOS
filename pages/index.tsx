@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Link from 'next/link';
 import FileUploader from '../components/FileUploader';
 import ScriptDisplay from '../components/ScriptDisplay';
 import { Scene, CharacterStats, parseScript } from '../utils/parseScript';
@@ -9,12 +10,6 @@ export default function Home() {
   const [characters, setCharacters] = useState<CharacterStats[]>([]);
   const [title, setTitle] = useState<string>('');
   const [author, setAuthor] = useState<string>('');
-  const [sceneText, setSceneText] = useState('INT. OFFICE - DAY Paul enters.');
-  const [parseResult, setParseResult] = useState('');
-  const [searchCharacter, setSearchCharacter] = useState('');
-  const [searchResult, setSearchResult] = useState('');
-  const [query, setQuery] = useState('');
-  const [queryResult, setQueryResult] = useState('');
 
   async function processFile(file: File) {
     setLoading(true);
@@ -52,73 +47,6 @@ export default function Home() {
     return [scriptTitle, scriptAuthor];
   }
 
-  async function callMcp(body: any) {
-    const res = await fetch('/api/mcp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    return res.json();
-  }
-
-  async function parseScene() {
-    const data = await callMcp({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'call_tool',
-      params: {
-        name: 'parse_scene',
-        arguments: { id: Date.now().toString(), text: sceneText },
-      },
-    });
-    const text = data.result?.content?.[0]?.text ?? '';
-    try {
-      setParseResult(JSON.stringify(JSON.parse(text), null, 2));
-    } catch {
-      setParseResult(text);
-    }
-  }
-
-  async function searchScenes() {
-    const data = await callMcp({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'call_tool',
-      params: {
-        name: 'search_scenes',
-        arguments: {
-          characters: searchCharacter
-            ? searchCharacter.split(',').map((s) => s.trim()).filter(Boolean)
-            : undefined,
-        },
-      },
-    });
-    const text = data.result?.content?.[0]?.text ?? '';
-    try {
-      setSearchResult(JSON.stringify(JSON.parse(text), null, 2));
-    } catch {
-      setSearchResult(text);
-    }
-  }
-
-  async function queryScenes() {
-    const data = await callMcp({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'call_tool',
-      params: {
-        name: 'query_scenes',
-        arguments: { query },
-      },
-    });
-    const text = data.result?.content?.[0]?.text ?? '';
-    try {
-      setQueryResult(JSON.stringify(JSON.parse(text), null, 2));
-    } catch {
-      setQueryResult(text);
-    }
-  }
-
   return (
     <main
       className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
@@ -142,58 +70,13 @@ export default function Home() {
             <ScriptDisplay scenes={scenes} characters={characters} />
           </div>
         )}
-        <div className="mt-6 space-y-4">
-          <h2 className="text-lg font-medium">MCP Test</h2>
-          <div className="space-y-2">
-            <textarea
-              className="w-full rounded border p-2"
-              value={sceneText}
-              onChange={(e) => setSceneText(e.target.value)}
-            />
-            <button
-              className="rounded bg-blue-500 px-3 py-1 text-white"
-              onClick={parseScene}
-            >
-              Parse Scene
-            </button>
-            <pre className="whitespace-pre-wrap break-words text-sm">
-              {parseResult}
-            </pre>
-          </div>
-          <div className="space-y-2">
-            <input
-              className="w-full rounded border p-2"
-              placeholder="Search by character"
-              value={searchCharacter}
-              onChange={(e) => setSearchCharacter(e.target.value)}
-            />
-            <button
-              className="rounded bg-green-600 px-3 py-1 text-white"
-              onClick={searchScenes}
-            >
-              Search Scenes
-            </button>
-            <pre className="whitespace-pre-wrap break-words text-sm">
-              {searchResult}
-            </pre>
-          </div>
-          <div className="space-y-2">
-            <input
-              className="w-full rounded border p-2"
-              placeholder="Natural language query"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <button
-              className="rounded bg-purple-600 px-3 py-1 text-white"
-              onClick={queryScenes}
-            >
-              Query Scenes
-            </button>
-            <pre className="whitespace-pre-wrap break-words text-sm">
-              {queryResult}
-            </pre>
-          </div>
+        <div className="mt-6">
+          <Link
+            href="/mcp"
+            className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            Open MCP Tester
+          </Link>
         </div>
       </div>
     </main>
