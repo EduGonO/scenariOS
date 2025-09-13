@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "cp -r .next dist",
     "start": "next start",
     "inspector": "mcp-inspector http://localhost:3000/api/mcp"
   },
