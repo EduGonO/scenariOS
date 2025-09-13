@@ -70,9 +70,17 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
 
   useEffect(() => {
     if (activeScene === null) return;
-    const el = listRef.current?.children[activeScene] as HTMLElement | undefined;
-    el?.scrollIntoView({ block: 'nearest' });
+    const container = listRef.current;
+    const el = container?.children[activeScene] as HTMLElement | undefined;
+    if (container && el) {
+      const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+      container.scrollTo({ top, behavior: 'smooth' });
+    }
   }, [activeScene]);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [filterChar]);
 
   function normalize(tok: string) {
     return cleanName(tok.toUpperCase()).replace(/'S?$/, '');
@@ -212,7 +220,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                 }}
                 data-index={idx}
               >
-                <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/70 px-6 py-3 backdrop-blur-sm">
+                <div className="sticky top-0 z-10 -mx-6 rounded-b-xl bg-white/70 px-6 py-2 backdrop-blur-sm shadow">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold text-gray-700">{`${displayNumber}. ${rest}`}</span>
                     {type && (
@@ -249,7 +257,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           })}
         </div>
       </div>
-      <div className="mt-4 flex items-start gap-6 overflow-x-auto pb-3 min-h-[5rem]">
+      <div className="mt-4 -mx-6 flex items-start gap-6 overflow-x-auto px-6 pb-3 scroll-px-6 min-h-[5rem]">
         {filterChar && (
           <button
             onClick={() => {
@@ -264,7 +272,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         )}
         {presentChars.length ? (
           <div className="flex flex-col gap-1 flex-none">
-            <span className="text-[10px] text-gray-500">Characters present</span>
+            <span className="sticky left-0 z-10 bg-white text-[10px] text-gray-500">Characters present</span>
             <div className="flex gap-4">
               {presentChars.map((char) => (
                 <button
@@ -308,7 +316,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         ) : null}
         {otherChars.length ? (
           <div className="flex flex-col gap-1 flex-none">
-            <span className="text-[10px] text-gray-400">Other characters</span>
+            <span className="sticky left-0 z-10 bg-white text-[10px] text-gray-400">Other characters</span>
             <div className="flex gap-4 opacity-40 grayscale">
               {otherChars.map((char) => (
                 <button

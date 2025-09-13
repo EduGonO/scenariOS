@@ -52,7 +52,7 @@ export default function Home() {
       style={{ height: '100dvh' }}
     >
       <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden p-6">
-        <h1 className="mb-4 text-left text-2xl font-light tracking-tight text-gray-800">scenariOS</h1>
+        <h1 className="mb-4 text-left text-base font-light text-gray-600">scenariOS</h1>
         {!scenes.length ? (
           <>
             <h2 className="mt-8 text-2xl font-light tracking-tight text-gray-900">Upload Film Script</h2>
@@ -60,8 +60,8 @@ export default function Home() {
           </>
         ) : (
           <div className="mb-4 text-left">
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-            <p className="mt-1 text-sm text-gray-600">by {author}</p>
+            <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
+            <p className="mt-1 text-base text-gray-700">by {author}</p>
           </div>
         )}
         {scenes.length > 0 && (
