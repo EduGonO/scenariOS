@@ -19,6 +19,8 @@ npm run dev
 
 The app runs at <http://localhost:3000>. Try uploading a PDF to see extracted text, or open <http://localhost:3000/mcp> to exercise the MCP tools.
 
+When deploying to container platforms such as Alpic's AWS Lambda environment, the app now binds to the port specified by the `PORT` environment variable (default `8080`) and listens on all interfaces. This prevents startup timeouts during deployment.
+
 ## Production build
 
 ```bash
