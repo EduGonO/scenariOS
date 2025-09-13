@@ -4,15 +4,19 @@
   "private": true,
   "description": "scenariOS MCP + web app",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "rm -rf dist && next build && tsc -p tsconfig.server.json && mv dist/src/* dist && rmdir dist/src",
     "postbuild": "mkdir -p dist && cp -r .next dist/.next",
-    "start": "next start dist -H 0.0.0.0 -p ${PORT:-8080}",
-    "inspector": "mcp-inspector http://localhost:3000/api/mcp"
+    "start": "node dist/index.js",
+    "dev:mcp": "tsx watch src/index.ts",
+    "inspector": "mcp-inspector http://localhost:3000/mcp"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
     "next": "^14.2.9",
     "pdf-parse": "^1.1.1",
     "react": "^18.3.1",
@@ -22,6 +26,7 @@
   "devDependencies": {
     "@eslint/js": "^9.18.0",
     "@modelcontextprotocol/inspector": "^0.16.2",
+    "@types/express": "^5.0.3",
     "@types/node": "^22.15.30",
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "19.1.13",
@@ -32,6 +37,7 @@
     "prettier": "^3.5.3",
     "prettier-eslint": "^16.4.2",
     "tailwindcss": "^3.4.15",
+    "tsx": "^4.19.4",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.32.0"
   }
