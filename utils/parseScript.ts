@@ -145,14 +145,10 @@ export function parseScript(text: string): {
 
     if (headingMatch) {
       finalizeScene();
-      let numberStr = headingMatch[2]?.trim().replace(/\.$/, "");
       let afterSetting = headingMatch[4].trim();
-      if (!numberStr) {
-        const trailing = afterSetting.match(/(.*?)(\d+)$/);
-        if (trailing) {
-          afterSetting = trailing[1].trim();
-          numberStr = trailing[2];
-        }
+      const trailing = afterSetting.match(/(.*?)(\d+)$/);
+      if (trailing) {
+        afterSetting = trailing[1].trim();
       }
       const setting = headingMatch[3].replace(/\.$/, "").toUpperCase();
       let location = afterSetting;
@@ -163,7 +159,7 @@ export function parseScript(text: string): {
         time = afterSetting.slice(dashIdx + 3).trim();
       }
       const headingText = `${headingMatch[3]} ${afterSetting}`.trim();
-      const sceneNumber = numberStr ? parseInt(numberStr, 10) : scenes.length + 1;
+      const sceneNumber = scenes.length + 1;
       current = {
         heading: headingText,
         sceneNumber,
@@ -217,7 +213,7 @@ export function parseScript(text: string): {
       dialogueCount: stat.dialogueCount,
       scenes: Array.from(stat.scenes).sort((a, b) => a - b),
     }))
-    .filter((c) => !c.name.includes("CUT TO"))
+    .filter((c) => !c.name.includes("CUT TO") && !(c.sceneCount === 1 && c.dialogueCount === 0))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const charSet = new Set(characters.map((c) => c.name));
