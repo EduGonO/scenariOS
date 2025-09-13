@@ -64,7 +64,7 @@ export default function Home() {
           p.type === "dialogue" ? `${p.character}\n${p.text}` : p.text,
         ),
       ].join("\n");
-      await fetch("/api/mcp", {
+      await fetch("/mcp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -107,10 +107,10 @@ export default function Home() {
               Debug
             </button>
             <Link
-              href="/mcp"
+              href="/debug"
               className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
             >
-              MCP
+              Debug Page
             </Link>
           </div>
         </div>

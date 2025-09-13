@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import McpDebug from '../components/McpDebug';
 
-export default function McpTester() {
+export default function DebugPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 p-6">
       <div className="mx-auto max-w-5xl">
