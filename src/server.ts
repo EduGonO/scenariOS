@@ -58,6 +58,8 @@ export const getServer = (): McpServer => {
         ...meta,
         characters: meta.characters.map((c) => c.toUpperCase()),
       };
+      const existingIndex = sceneStore.findIndex((s) => s.id === id);
+      if (existingIndex !== -1) sceneStore.splice(existingIndex, 1);
       sceneStore.push(scene);
       return { content: [{ type: "text", text: JSON.stringify(scene) }] };
     },

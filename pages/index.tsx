@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Link from "next/link";
 import FileUploader from "../components/FileUploader";
 import ScriptDisplay from "../components/ScriptDisplay";
 import { Scene, CharacterStats, parseScript } from "../utils/parseScript";
@@ -28,6 +29,12 @@ export default function Home() {
       setCharacters(parsedChars);
       setTitle(scriptTitle);
       setAuthor(scriptAuthor);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scenes", JSON.stringify(parsedScenes));
+        localStorage.setItem("characters", JSON.stringify(parsedChars));
+        localStorage.setItem("title", scriptTitle);
+        localStorage.setItem("author", scriptAuthor);
+      }
       await registerScenes(parsedScenes);
       setLoading(false);
     };
@@ -84,7 +91,15 @@ export default function Home() {
       style={{ height: "100dvh" }}
     >
       <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden p-6">
-        <h1 className="mb-4 text-left text-base font-light text-gray-600">scenariOS</h1>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-base font-light text-gray-600">scenariOS</h1>
+          <Link
+            href="/mcp"
+            className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
+          >
+            MCP
+          </Link>
+        </div>
         {!scenes.length ? (
           <>
             <h2 className="mt-8 text-2xl font-light tracking-tight text-gray-900">Upload Film Script</h2>

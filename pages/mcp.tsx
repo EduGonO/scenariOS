@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import type { Scene } from '../utils/parseScript';
 
 export default function McpTester() {
   const [sceneText, setSceneText] = useState('INT. OFFICE - DAY Paul enters.');
@@ -17,6 +18,37 @@ export default function McpTester() {
   const [printTime, setPrintTime] = useState('');
   const [printResult, setPrintResult] = useState('');
   const [metaResult, setMetaResult] = useState('');
+
+  async function registerScenes(parsed: Scene[]) {
+    for (const scene of parsed) {
+      const raw = [
+        scene.heading,
+        ...scene.parts.map((p) =>
+          p.type === 'dialogue' ? `${p.character}\n${p.text}` : p.text,
+        ),
+      ].join('\n');
+      await fetch('/api/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: {
+            name: 'parse_scene',
+            arguments: {
+              id: String(scene.sceneNumber),
+              text: raw,
+              setting: scene.setting,
+              location: scene.location,
+              time: scene.time,
+              characters: scene.characters,
+            },
+          },
+        }),
+      });
+    }
+  }
 
   async function callMcp(body: any, setter: (s: string) => void) {
     setter('');
@@ -128,6 +160,16 @@ export default function McpTester() {
       setMetaResult,
     );
   }
+
+  useEffect(() => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('scenes') : null;
+    if (stored) {
+      const scenes: Scene[] = JSON.parse(stored);
+      registerScenes(scenes).then(refreshMeta);
+    } else {
+      refreshMeta();
+    }
+  }, []);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 p-6">
