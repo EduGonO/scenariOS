@@ -246,37 +246,46 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           <div className="flex flex-col gap-1 flex-none">
             <span className="sticky left-0 z-10 text-[10px] text-gray-500">Characters present</span>
             <div className="flex gap-4">
-              {presentChars.map((char) => (
-                <button
-                  key={char.name}
-                  onClick={() => {
-                    const next = filterChar === char.name ? null : char.name;
-                    setFilterChar(next);
-                    if (next) {
-                      setActiveScene(0);
-                      requestAnimationFrame(() => {
-                        const el = sceneRefs.current[0];
-                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      });
-                    } else {
-                      setActiveScene(null);
-                      requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
-                    }
-                  }}
-                  className={`flex-shrink-0 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
-                    filterChar === char.name ? "bg-gray-100 font-medium" : ""
-                  }`}
-                >
-                  <span className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}>
-                    {char.name}
-                  </span>
-                  <div className="mt-1 text-[10px] leading-tight text-gray-600">
-                    <div>{char.sceneCount} scenes</div>
-                    <div>{char.dialogueCount} dialogues</div>
-                    <div className="truncate">Scenes: {char.scenes.join(", ")}</div>
-                  </div>
-                </button>
-              ))}
+              {presentChars.map((char) => {
+                const preview = char.scenes.slice(0, 8).join(", ");
+                const sceneText = char.scenes.length > 8 ? `${preview}…` : preview;
+                return (
+                  <button
+                    key={char.name}
+                    onClick={() => {
+                      const next = filterChar === char.name ? null : char.name;
+                      setFilterChar(next);
+                      if (next) {
+                        setActiveScene(0);
+                        requestAnimationFrame(() => {
+                          const el = sceneRefs.current[0];
+                          el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        });
+                      } else {
+                        setActiveScene(null);
+                        requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
+                      }
+                    }}
+                    className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
+                      filterChar === char.name ? "bg-gray-100 font-medium" : ""
+                    }`}
+                  >
+                    <span className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}>
+                      {char.name}
+                    </span>
+                    <div className="mt-1 text-[10px] leading-tight text-gray-600">
+                      <div>{char.sceneCount} scenes</div>
+                      <div>{char.dialogueCount} dialogues</div>
+                      <div
+                        className="whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={`Scenes: ${char.scenes.join(", ")}`}
+                      >
+                        Scenes: {sceneText}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : null}
@@ -284,35 +293,44 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           <div className="flex flex-col gap-1 flex-none">
             <span className="sticky left-0 z-10 text-[10px] text-gray-400">Other characters</span>
             <div className="flex gap-4 opacity-40 grayscale">
-              {otherChars.map((char) => (
-                <button
-                  key={char.name}
-                  onClick={() => {
-                    const next = filterChar === char.name ? null : char.name;
-                    setFilterChar(next);
-                    if (next) {
-                      setActiveScene(0);
-                      requestAnimationFrame(() => {
-                        const el = sceneRefs.current[0];
-                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      });
-                    } else {
-                      setActiveScene(null);
-                      requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
-                    }
-                  }}
-                  className={`flex-shrink-0 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
-                    filterChar === char.name ? "bg-gray-100 font-medium" : ""
-                  }`}
-                >
-                  <span className="block rounded px-1 font-semibold bg-gray-200 text-gray-800">{char.name}</span>
-                  <div className="mt-1 text-[10px] leading-tight text-gray-600">
-                    <div>{char.sceneCount} scenes</div>
-                    <div>{char.dialogueCount} dialogues</div>
-                    <div className="truncate">Scenes: {char.scenes.join(", ")}</div>
-                  </div>
-                </button>
-              ))}
+              {otherChars.map((char) => {
+                const preview = char.scenes.slice(0, 8).join(", ");
+                const sceneText = char.scenes.length > 8 ? `${preview}…` : preview;
+                return (
+                  <button
+                    key={char.name}
+                    onClick={() => {
+                      const next = filterChar === char.name ? null : char.name;
+                      setFilterChar(next);
+                      if (next) {
+                        setActiveScene(0);
+                        requestAnimationFrame(() => {
+                          const el = sceneRefs.current[0];
+                          el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        });
+                      } else {
+                        setActiveScene(null);
+                        requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
+                      }
+                    }}
+                    className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
+                      filterChar === char.name ? "bg-gray-100 font-medium" : ""
+                    }`}
+                  >
+                    <span className="block rounded px-1 font-semibold bg-gray-200 text-gray-800">{char.name}</span>
+                    <div className="mt-1 text-[10px] leading-tight text-gray-600">
+                      <div>{char.sceneCount} scenes</div>
+                      <div>{char.dialogueCount} dialogues</div>
+                      <div
+                        className="whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={`Scenes: ${char.scenes.join(", ")}`}
+                      >
+                        Scenes: {sceneText}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : null}

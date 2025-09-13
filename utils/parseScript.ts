@@ -213,7 +213,7 @@ export function parseScript(text: string): {
       dialogueCount: stat.dialogueCount,
       scenes: Array.from(stat.scenes).sort((a, b) => a - b),
     }))
-    .filter((c) => !c.name.includes("CUT TO") && !(c.sceneCount === 1 && c.dialogueCount === 0))
+    .filter((c) => c.dialogueCount > 0 && !c.name.includes("CUT TO"))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const charSet = new Set(characters.map((c) => c.name));
