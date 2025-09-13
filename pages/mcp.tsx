@@ -14,7 +14,10 @@ export default function McpTester() {
     try {
       const res = await fetch('/api/mcp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+        },
         body: JSON.stringify(body),
       });
       if (!res.body) {
