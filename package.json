@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "cp -r .next dist",
-    "start": "next start",
+    "postbuild": "mkdir -p dist && cp -r .next dist/.next",
+    "start": "next start dist -H 0.0.0.0 -p ${PORT:-8080}",
     "inspector": "mcp-inspector http://localhost:3000/api/mcp"
   },
   "dependencies": {
