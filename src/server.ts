@@ -1,43 +1,23 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { parseScript } from "../utils/parseScript";
 
 const SceneInfo = z.object({
-  setting: z.enum(["INT", "EXT"]),
+  setting: z.string(),
   location: z.string(),
   time: z.string(),
   characters: z.array(z.string()).default([]),
 });
 
 type Scene = z.infer<typeof SceneInfo> & { id: string; raw: string };
-const sceneStore: Scene[] = [];
 
-async function parseWithMistral(text: string) {
-  const apiKey = process.env["MISTRAL_API_KEY"];
-  if (!apiKey) throw new Error("MISTRAL_API_KEY not set");
-  const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "mistral-small-latest",
-      messages: [
-        {
-          role: "user",
-          content:
-            `Extract scene metadata as JSON with keys setting (INT or EXT), location, time, characters (array of uppercase names). Scene: ${text}`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
-  if (!res.ok) throw new Error(`Mistral API error ${res.status}`);
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content ?? "{}";
-  return SceneInfo.parse(JSON.parse(content));
-}
+// Persist scenes across hot-reloads or separate imports by attaching the store
+// to the global object. This helps keep scenes registered even after navigating
+// between pages which can cause the module to be re-evaluated.
+const g = globalThis as any;
+g.__scenariOSSceneStore = g.__scenariOSSceneStore || [];
+const sceneStore: Scene[] = g.__scenariOSSceneStore as Scene[];
 
 export const getServer = (): McpServer => {
   const server = new McpServer(
@@ -47,90 +27,107 @@ export const getServer = (): McpServer => {
 
   server.tool(
     "parse_scene",
-    "Parse a script scene and store metadata",
+    "Store scene metadata",
     {
       id: z.string().describe("Unique scene id"),
-      text: z.string().describe("Scene heading or description"),
+      text: z.string().optional().describe("Raw scene text"),
+      setting: z.string().optional(),
+      location: z.string().optional(),
+      time: z.string().optional(),
+      characters: z.array(z.string()).optional(),
     },
-    async ({ id, text }): Promise<CallToolResult> => {
-      const meta = await parseWithMistral(text);
-      const scene = {
+    async ({ id, text, setting, location, time, characters }): Promise<CallToolResult> => {
+      let meta: z.infer<typeof SceneInfo>;
+      let raw = text || "";
+      if (!setting || !location || !time) {
+        if (!text) throw new Error("text required when metadata missing");
+        const parsed = parseScript(text);
+        const first = parsed.scenes[0];
+        if (!first) throw new Error("unable to parse scene");
+        meta = {
+          setting: first.setting,
+          location: first.location,
+          time: first.time,
+          characters: first.characters,
+        };
+      } else {
+        meta = {
+          setting,
+          location,
+          time,
+          characters: characters?.map((c) => c.toUpperCase()) || [],
+        };
+      }
+      const scene: Scene = {
         id,
-        raw: text,
+        raw,
         ...meta,
         characters: meta.characters.map((c) => c.toUpperCase()),
       };
+      const existingIndex = sceneStore.findIndex((s) => s.id === id);
+      if (existingIndex !== -1) sceneStore.splice(existingIndex, 1);
       sceneStore.push(scene);
-      return {
-        content: [{ type: "text", text: JSON.stringify(scene) }],
-      };
+      return { content: [{ type: "text", text: JSON.stringify(scene) }] };
     },
   );
 
-  const searchShape = {
-    setting: z.enum(["INT", "EXT"]).optional(),
+  const findShape = {
+    sceneNumber: z.string().optional(),
+    characters: z.array(z.string()).optional(),
+    setting: z.string().optional(),
     location: z.string().optional(),
     time: z.string().optional(),
-    characters: z.array(z.string()).optional(),
   };
-  const searchSchema = z.object(searchShape);
-  type SearchParams = z.infer<typeof searchSchema>;
+  const findSchema = z.object(findShape);
+  type FindParams = z.infer<typeof findSchema>;
 
-  function filterScenes({ setting, location, time, characters }: SearchParams) {
-    return sceneStore.filter((s) =>
-      (!setting || s.setting === setting) &&
-      (!location || s.location.toLowerCase().includes(location.toLowerCase())) &&
-      (!time || s.time.toLowerCase().includes(time.toLowerCase())) &&
-      (!characters || characters.every((c) => s.characters.includes(c.toUpperCase()))),
+  function filterScenes({ sceneNumber, characters, setting, location, time }: FindParams) {
+    const chars = characters?.map((c) => c.toUpperCase());
+    return sceneStore.filter(
+      (s) =>
+        (!sceneNumber || s.id === sceneNumber) &&
+        (!setting || s.setting.toLowerCase() === setting.toLowerCase()) &&
+        (!location || s.location.toLowerCase().includes(location.toLowerCase())) &&
+        (!time || s.time.toLowerCase().includes(time.toLowerCase())) &&
+        (!chars || chars.every((c) => s.characters.includes(c))),
     );
   }
 
+  function formatScene(scene: Scene) {
+    const heading = `**${scene.id}.** \`${scene.setting}.\` ${scene.location} - ${scene.time}`;
+    let lines = scene.raw.split(/\r?\n/);
+    if (/^\s*(INT|EXT)\./i.test(lines[0])) {
+      lines = lines.slice(1);
+    }
+    let body = lines.join("\n").trim();
+    for (const char of scene.characters) {
+      const regex = new RegExp(`\\b${char}\\b`, "gi");
+      body = body.replace(regex, `**${char.toUpperCase()}**`);
+    }
+    if (body) body += "\n";
+    return `${heading}\n${body}`;
+  }
+
   server.tool(
-    "search_scenes",
-    "Search previously parsed scenes",
-    searchShape,
-    async (params: SearchParams): Promise<CallToolResult> => {
-      const results = filterScenes({
-        ...params,
-        characters: params.characters?.map((c) => c.toUpperCase()),
-      });
+    "find",
+    "Find scenes by number or attributes",
+    findShape,
+    async (params: FindParams): Promise<CallToolResult> => {
+      const parsed = findSchema.parse(params);
+      const results = filterScenes(parsed);
       return { content: [{ type: "text", text: JSON.stringify(results) }] };
     },
   );
 
   server.tool(
-    "query_scenes",
-    "Natural language scene search",
-    { query: z.string() },
-    async ({ query }): Promise<CallToolResult> => {
-      const apiKey = process.env["MISTRAL_API_KEY"];
-      if (!apiKey) throw new Error("MISTRAL_API_KEY not set");
-      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "mistral-small-latest",
-          messages: [
-            {
-              role: "user",
-              content: `Extract search filters as JSON with keys setting (INT or EXT), location, time, characters (array of uppercase names). Query: ${query}`,
-            },
-          ],
-          response_format: { type: "json_object" },
-        }),
-      });
-      if (!res.ok) throw new Error(`Mistral API error ${res.status}`);
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content ?? "{}";
-      const params = searchSchema.parse(JSON.parse(content));
-      const results = filterScenes({
-        ...params,
-        characters: params.characters?.map((c) => c.toUpperCase()),
-      });
-      return { content: [{ type: "text", text: JSON.stringify(results) }] };
+    "print",
+    "Print scenes in formatted markdown",
+    findShape,
+    async (params: FindParams): Promise<CallToolResult> => {
+      const parsed = findSchema.parse(params);
+      const results = filterScenes(parsed);
+      const formatted = results.map(formatScene).join("\n\n");
+      return { content: [{ type: "text", text: formatted }] };
     },
   );
 
