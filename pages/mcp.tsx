@@ -3,8 +3,6 @@ import Link from 'next/link';
 import type { Scene } from '../utils/parseScript';
 
 export default function McpTester() {
-  const [sceneText, setSceneText] = useState('INT. OFFICE - DAY Paul enters.');
-  const [parseResult, setParseResult] = useState('');
   const [findSceneNumber, setFindSceneNumber] = useState('');
   const [findCharacter, setFindCharacter] = useState('');
   const [findSetting, setFindSetting] = useState('');
@@ -55,54 +53,19 @@ export default function McpTester() {
     try {
       const res = await fetch('/api/mcp', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json, text/event-stream',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.body) {
-        const text = await res.text();
-        throw new Error(text || 'No response');
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let raw = '';
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        raw += decoder.decode(value, { stream: true });
-        setter(raw);
-      }
+      const data = await res.json();
+      const text = data.result?.content?.[0]?.text ?? '';
       try {
-        const data = JSON.parse(raw);
-        const text = data.result?.content?.[0]?.text ?? '';
-        try {
-          setter(JSON.stringify(JSON.parse(text), null, 2));
-        } catch {
-          setter(text);
-        }
+        setter(JSON.stringify(JSON.parse(text), null, 2));
       } catch {
-        setter(raw);
+        setter(text);
       }
     } catch (err: any) {
       setter(err.message || String(err));
     }
-  }
-
-  async function runParse() {
-    await callMcp(
-      {
-        jsonrpc: '2.0',
-        id: Date.now(),
-        method: 'tools/call',
-        params: {
-          name: 'parse_scene',
-          arguments: { id: Date.now().toString(), text: sceneText },
-        },
-      },
-      setParseResult
-    );
   }
 
   async function runFind() {
@@ -183,25 +146,7 @@ export default function McpTester() {
             Back
           </Link>
         </div>
-        <div className="grid gap-6 md:grid-cols-3">
-          <section className="flex flex-col rounded border bg-white p-4 shadow">
-            <h2 className="mb-2 font-medium">Parse Scene</h2>
-            <textarea
-              className="mb-2 flex-1 rounded border p-2"
-              value={sceneText}
-              onChange={(e) => setSceneText(e.target.value)}
-            />
-            <button
-              className="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
-              onClick={runParse}
-            >
-              Run
-            </button>
-            <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
-              {parseResult}
-            </pre>
-          </section>
-
+        <div className="grid gap-6 md:grid-cols-2">
           <section className="flex flex-col rounded border bg-white p-4 shadow">
             <h2 className="mb-2 font-medium">Find Scenes</h2>
             <input
@@ -290,7 +235,7 @@ export default function McpTester() {
         </div>
         <section className="mt-6 flex flex-col rounded border bg-white p-4 shadow">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-medium">Debug Stored Scenes</h2>
+            <h2 className="font-medium">Registered Scenes</h2>
             <button
               onClick={refreshMeta}
               className="rounded bg-gray-200 px-2 py-1 text-sm hover:bg-gray-300"
