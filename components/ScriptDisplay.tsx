@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Scene, ScenePart } from '../utils/parseScript';
+import { Scene, ScenePart, cleanName } from '../utils/parseScript';
 
 interface Props {
   scenes: Scene[];
@@ -7,15 +7,15 @@ interface Props {
 }
 
 const COLORS = [
-  'text-red-600',
-  'text-blue-600',
-  'text-green-600',
-  'text-purple-600',
-  'text-yellow-600',
-  'text-pink-600',
-  'text-indigo-600',
-  'text-teal-600',
-  'text-orange-600',
+  'bg-red-200',
+  'bg-blue-200',
+  'bg-green-200',
+  'bg-purple-200',
+  'bg-yellow-200',
+  'bg-pink-200',
+  'bg-indigo-200',
+  'bg-teal-200',
+  'bg-orange-200',
 ];
 
 export default function ScriptDisplay({ scenes, characters }: Props) {
@@ -36,13 +36,20 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
 
   const active = filteredScenes[activeScene];
 
+  function normalize(tok: string) {
+    return cleanName(tok.replace(/[^A-Z0-9'().-]/g, '').toUpperCase()).replace(/'S?$/, '');
+  }
+
   function highlight(text: string) {
     const tokens = text.split(/(\s+)/);
     return tokens.map((tok, idx) => {
-      const plain = tok.replace(/[^A-Z0-9']/g, '');
-      if (colorMap[plain]) {
+      const base = normalize(tok);
+      if (colorMap[base]) {
         return (
-          <span key={idx} className={`font-semibold ${colorMap[plain]}`}>
+          <span
+            key={idx}
+            className={`rounded px-1 font-semibold ${colorMap[base]} text-gray-800`}
+          >
             {tok}
           </span>
         );
@@ -53,50 +60,65 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
 
   if (!scenes.length) return null;
 
-  return (
-    <div className="grid grid-cols-5 gap-6">
-      <div className="col-span-1 h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white">
-        {filteredScenes.map((scene, idx) => (
-          <button
-            key={idx}
-            onClick={() => setActiveScene(idx)}
-            className={`block w-full border-b px-4 py-2 text-left hover:bg-gray-50 ${
-              activeScene === idx ? 'bg-gray-100 font-medium' : ''
-            }`}
-          >
-            {scene.number ? `${scene.number}. ` : ''}
-            {scene.heading}
-          </button>
-        ))}
-      </div>
-      <div className="col-span-1 h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white">
-        {characters.map((char) => (
-          <button
-            key={char}
-            onClick={() => {
-              setFilterChar((prev) => (prev === char ? null : char));
-              setActiveScene(0);
-            }}
-            className={`block w-full border-b px-4 py-2 text-left hover:bg-gray-50 ${
-              filterChar === char ? 'bg-gray-100 font-medium' : ''
-            }`}
-          >
-            <span className={colorMap[char]}>{char}</span>
-          </button>
-        ))}
-      </div>
-      <div className="col-span-3">
-        {active ? (
-          <div className="max-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-gray-800">
-              {active.number ? `${active.number}. ` : ''}
-              {active.heading}
-            </h2>
-            <div className="space-y-4 text-gray-700">
-              {active.parts.map((part, idx) => (
-                <Part key={idx} part={part} colorMap={colorMap} highlight={highlight} />
-              ))}
-            </div>
+    return (
+      <div
+        className="grid grid-cols-5 gap-6"
+        style={{ fontFamily: 'Courier, monospace' }}
+      >
+        <div className="col-span-1 h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white">
+          {filteredScenes.map((scene, idx) => {
+            const originalIdx = scenes.indexOf(scene);
+            const displayNumber = scene.number || originalIdx + 1;
+            return (
+            <button
+              key={idx}
+              onClick={() => setActiveScene(idx)}
+              className={`block w-full border-b px-4 py-2 text-left hover:bg-gray-50 ${
+                activeScene === idx ? 'bg-gray-100 font-medium' : ''
+              }`}
+            >
+              {displayNumber}. {scene.heading}
+            </button>
+          );
+          })}
+        </div>
+        <div className="col-span-1 h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white">
+          {characters.map((char) => (
+            <button
+              key={char}
+              onClick={() => {
+                setFilterChar((prev) => (prev === char ? null : char));
+                setActiveScene(0);
+              }}
+              className={`block w-full border-b px-4 py-2 text-left hover:bg-gray-50 ${
+                filterChar === char ? 'bg-gray-100 font-medium' : ''
+              }`}
+            >
+              <span
+                className={`rounded px-1 font-semibold ${colorMap[char]} text-gray-800`}
+              >
+                {char}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="col-span-3">
+          {active ? (
+            <div className="max-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              {(() => {
+                const originalIdx = scenes.indexOf(active);
+                const displayNumber = active.number || originalIdx + 1;
+                return (
+                  <h2 className="mb-4 text-lg font-semibold text-gray-800">
+                    {displayNumber}. {active.heading}
+                  </h2>
+                );
+              })()}
+              <div className="space-y-4 text-gray-700">
+                {active.parts.map((part, idx) => (
+                  <Part key={idx} part={part} colorMap={colorMap} highlight={highlight} />
+                ))}
+              </div>
           </div>
         ) : (
           <p className="text-gray-500">Select a scene to view its content.</p>
@@ -118,10 +140,12 @@ function Part({
   if (part.type === 'dialogue') {
     return (
       <div>
-        <div
-          className={`text-center font-semibold ${colorMap[part.character]}`}
-        >
-          {part.character}
+        <div className="mb-1 text-center">
+          <span
+            className={`rounded px-2 ${colorMap[part.character]} text-gray-800 font-semibold`}
+          >
+            {part.character}
+          </span>
         </div>
         <p className="text-center whitespace-pre-line">{part.text}</p>
       </div>

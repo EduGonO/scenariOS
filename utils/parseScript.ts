@@ -19,19 +19,39 @@ export interface Scene {
 }
 
 const HEADING_REGEX = /^(\s*)(\d+\.?\s*)?(INT\.\/EXT\.|EXT\/INT\.|INT\/EXT|EXT\/INT|INT\.|EXT\.)\s*(.*)$/i;
-const CHAR_LINE_REGEX = /^\s{0,20}([A-Z][A-Z0-9\s'()]+)$/;
+const CHAR_LINE_REGEX = /^\s{0,20}([A-Z][A-Z0-9\s'().-]+)$/;
 const STOP_WORDS = new Set(['INT', 'EXT', 'CUT', 'FADE', 'DAY', 'NIGHT', 'TO', 'THE', 'A', 'AN', 'AND']);
+
+export function cleanName(raw: string): string {
+  return raw
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export function parseScript(text: string): {
   scenes: Scene[];
   characters: string[];
 } {
   const scenes: Scene[] = [];
-  const allCharacters = new Set<string>();
+  const dialogueCounts = new Map<string, number>();
 
   let current: Scene | null = null;
   let currentDialogue: Dialogue | null = null;
   let sceneCharacters: Set<string> = new Set();
+
+  function pushCurrentDialogue() {
+    if (!current || !currentDialogue) return;
+    if (currentDialogue.text.trim()) {
+      sceneCharacters.add(currentDialogue.character);
+      const count = dialogueCounts.get(currentDialogue.character) || 0;
+      dialogueCounts.set(currentDialogue.character, count + 1);
+      current.parts.push(currentDialogue);
+    } else {
+      current.parts.push({ type: 'direction', text: currentDialogue.character });
+    }
+    currentDialogue = null;
+  }
 
   const lines = text.split(/\r?\n/);
 
@@ -41,7 +61,7 @@ export function parseScript(text: string): {
 
     if (headingMatch) {
       if (current) {
-        if (currentDialogue) current.parts.push(currentDialogue);
+        pushCurrentDialogue();
         current.characters = Array.from(sceneCharacters);
         scenes.push(current);
       }
@@ -58,24 +78,17 @@ export function parseScript(text: string): {
     const trimmed = line.trim();
 
     if (!trimmed) {
-      if (currentDialogue) {
-        current.parts.push(currentDialogue);
-        currentDialogue = null;
-      }
+      pushCurrentDialogue();
       continue;
     }
 
     const charMatch = trimmed.match(CHAR_LINE_REGEX);
-    if (
-      charMatch &&
-      trimmed === trimmed.toUpperCase() &&
-      !trimmed.includes('.')
-    ) {
-      if (currentDialogue) current.parts.push(currentDialogue);
-      const name = charMatch[1].trim();
-      currentDialogue = { type: 'dialogue', character: name, text: '' };
-      sceneCharacters.add(name);
-      allCharacters.add(name);
+    if (charMatch && trimmed === trimmed.toUpperCase()) {
+      pushCurrentDialogue();
+      const name = cleanName(charMatch[1].trim());
+      if (name) {
+        currentDialogue = { type: 'dialogue', character: name, text: '' };
+      }
       continue;
     }
 
@@ -87,21 +100,25 @@ export function parseScript(text: string): {
     current.parts.push({ type: 'direction', text: trimmed });
     const caps = trimmed.match(/[A-Z][A-Z0-9]+(?:\s+[A-Z][A-Z0-9]+)*/g) || [];
     for (const word of caps) {
-      const name = word.trim();
+      const name = cleanName(word.trim());
       if (!STOP_WORDS.has(name) && name.length > 1) {
         sceneCharacters.add(name);
-        allCharacters.add(name);
       }
     }
   }
 
   if (current) {
-    if (currentDialogue) current.parts.push(currentDialogue);
+    pushCurrentDialogue();
     current.characters = Array.from(sceneCharacters);
     scenes.push(current);
   }
 
-  const characters = Array.from(allCharacters).sort();
+  const characters = Array.from(dialogueCounts.keys()).sort();
+  const charSet = new Set(characters);
+  for (const scene of scenes) {
+    scene.characters = scene.characters.filter((c) => charSet.has(c));
+  }
+
   return { scenes, characters };
 }
 
