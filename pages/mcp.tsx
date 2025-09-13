@@ -50,7 +50,7 @@ export default function McpTester() {
       {
         jsonrpc: '2.0',
         id: Date.now(),
-        method: 'call_tool',
+        method: 'tools/call',
         params: {
           name: 'parse_scene',
           arguments: { id: Date.now().toString(), text: sceneText },
@@ -65,7 +65,7 @@ export default function McpTester() {
       {
         jsonrpc: '2.0',
         id: Date.now(),
-        method: 'call_tool',
+        method: 'tools/call',
         params: {
           name: 'search_scenes',
           arguments: {
@@ -84,7 +84,7 @@ export default function McpTester() {
       {
         jsonrpc: '2.0',
         id: Date.now(),
-        method: 'call_tool',
+        method: 'tools/call',
         params: { name: 'query_scenes', arguments: { query } },
       },
       setQueryResult
