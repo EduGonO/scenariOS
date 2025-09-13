@@ -13,7 +13,7 @@ type Scene = z.infer<typeof SceneInfo> & { id: string; raw: string };
 const sceneStore: Scene[] = [];
 
 async function parseWithMistral(text: string) {
-  const apiKey = process.env.MISTRAL_API_KEY;
+  const apiKey = process.env["MISTRAL_API_KEY"];
   if (!apiKey) throw new Error("MISTRAL_API_KEY not set");
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
@@ -103,7 +103,7 @@ export const getServer = (): McpServer => {
     "Natural language scene search",
     { query: z.string() },
     async ({ query }): Promise<CallToolResult> => {
-      const apiKey = process.env.MISTRAL_API_KEY;
+      const apiKey = process.env["MISTRAL_API_KEY"];
       if (!apiKey) throw new Error("MISTRAL_API_KEY not set");
       const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST",

@@ -27,7 +27,7 @@ npm run build
 
 ## MCP inspector
 
-Set `MISTRAL_API_KEY` and test the MCP endpoint with the inspector:
+Set `MISTRAL_API_KEY` in your environment (server runtime) and test the MCP endpoint with the inspector:
 
 ```bash
 MISTRAL_API_KEY=your_key npm run inspector
