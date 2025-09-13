@@ -10,6 +10,10 @@ export default function Home() {
   const [characters, setCharacters] = useState<CharacterStats[]>([]);
   const [title, setTitle] = useState<string>("");
   const [author, setAuthor] = useState<string>("");
+  const [findArgs, setFindArgs] = useState<string>("");
+  const [findResult, setFindResult] = useState<string>("");
+  const [printArgs, setPrintArgs] = useState<string>("");
+  const [printResult, setPrintResult] = useState<string>("");
 
   async function processFile(file: File) {
     setLoading(true);
@@ -47,6 +51,84 @@ export default function Home() {
     return [scriptTitle, scriptAuthor];
   }
 
+  async function callMcp(body: any, setter: (s: string) => void) {
+    setter("");
+    try {
+      const res = await fetch("/api/mcp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.body) {
+        const text = await res.text();
+        throw new Error(text || "No response");
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let raw = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        raw += decoder.decode(value, { stream: true });
+        setter(raw);
+      }
+      try {
+        const data = JSON.parse(raw);
+        const text = data.result?.content?.[0]?.text ?? "";
+        try {
+          setter(JSON.stringify(JSON.parse(text), null, 2));
+        } catch {
+          setter(text);
+        }
+      } catch {
+        setter(raw);
+      }
+    } catch (err: any) {
+      setter(err.message || String(err));
+    }
+  }
+
+  async function runFind() {
+    let args = {};
+    try {
+      args = findArgs ? JSON.parse(findArgs) : {};
+    } catch (e) {
+      setFindResult("Invalid JSON");
+      return;
+    }
+    await callMcp(
+      {
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: "find", arguments: args },
+      },
+      setFindResult,
+    );
+  }
+
+  async function runPrint() {
+    let args = {};
+    try {
+      args = printArgs ? JSON.parse(printArgs) : {};
+    } catch (e) {
+      setPrintResult("Invalid JSON");
+      return;
+    }
+    await callMcp(
+      {
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: "print", arguments: args },
+      },
+      setPrintResult,
+    );
+  }
+
   return (
     <main
       className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
@@ -76,6 +158,45 @@ export default function Home() {
             <pre className="max-h-64 overflow-auto rounded bg-white p-2 text-xs shadow">
               {JSON.stringify({ scenes, characters }, null, 2)}
             </pre>
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <section className="flex flex-col rounded border bg-white p-4 shadow">
+                <h4 className="mb-2 font-medium">Find Scenes</h4>
+                <textarea
+                  className="mb-2 flex-1 rounded border p-2 text-xs"
+                  placeholder='{"characters":["MARK"],"time":"NIGHT"}'
+                  value={findArgs}
+                  onChange={(e) => setFindArgs(e.target.value)}
+                />
+                <button
+                  className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
+                  onClick={runFind}
+                >
+                  Run
+                </button>
+                <pre className="mt-2 h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-xs">
+                  {findResult}
+                </pre>
+              </section>
+
+              <section className="flex flex-col rounded border bg-white p-4 shadow">
+                <h4 className="mb-2 font-medium">Print Scenes</h4>
+                <textarea
+                  className="mb-2 flex-1 rounded border p-2 text-xs"
+                  placeholder='{"sceneNumber":"1"}'
+                  value={printArgs}
+                  onChange={(e) => setPrintArgs(e.target.value)}
+                />
+                <button
+                  className="rounded bg-purple-600 px-3 py-1 text-white hover:bg-purple-700"
+                  onClick={runPrint}
+                >
+                  Run
+                </button>
+                <pre className="mt-2 h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-xs">
+                  {printResult}
+                </pre>
+              </section>
+            </div>
           </div>
         )}
         <div className="mt-6">

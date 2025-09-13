@@ -4,10 +4,18 @@ import Link from 'next/link';
 export default function McpTester() {
   const [sceneText, setSceneText] = useState('INT. OFFICE - DAY Paul enters.');
   const [parseResult, setParseResult] = useState('');
-  const [searchCharacter, setSearchCharacter] = useState('');
-  const [searchResult, setSearchResult] = useState('');
-  const [query, setQuery] = useState('');
-  const [queryResult, setQueryResult] = useState('');
+  const [findSceneNumber, setFindSceneNumber] = useState('');
+  const [findCharacter, setFindCharacter] = useState('');
+  const [findSetting, setFindSetting] = useState('');
+  const [findLocation, setFindLocation] = useState('');
+  const [findTime, setFindTime] = useState('');
+  const [findResult, setFindResult] = useState('');
+  const [printSceneNumber, setPrintSceneNumber] = useState('');
+  const [printCharacter, setPrintCharacter] = useState('');
+  const [printSetting, setPrintSetting] = useState('');
+  const [printLocation, setPrintLocation] = useState('');
+  const [printTime, setPrintTime] = useState('');
+  const [printResult, setPrintResult] = useState('');
 
   async function callMcp(body: any, setter: (s: string) => void) {
     setter('');
@@ -36,7 +44,11 @@ export default function McpTester() {
       try {
         const data = JSON.parse(raw);
         const text = data.result?.content?.[0]?.text ?? '';
-        setter(JSON.stringify(JSON.parse(text), null, 2));
+        try {
+          setter(JSON.stringify(JSON.parse(text), null, 2));
+        } catch {
+          setter(text);
+        }
       } catch {
         setter(raw);
       }
@@ -60,34 +72,47 @@ export default function McpTester() {
     );
   }
 
-  async function runSearch() {
+  async function runFind() {
+    const args: Record<string, any> = {};
+    if (findSceneNumber) args.sceneNumber = findSceneNumber;
+    if (findCharacter)
+      args.characters = findCharacter
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (findSetting) args.setting = findSetting;
+    if (findLocation) args.location = findLocation;
+    if (findTime) args.time = findTime;
     await callMcp(
       {
         jsonrpc: '2.0',
         id: Date.now(),
         method: 'tools/call',
-        params: {
-          name: 'search_scenes',
-          arguments: {
-            characters: searchCharacter
-              ? searchCharacter.split(',').map((s) => s.trim()).filter(Boolean)
-              : undefined,
-          },
-        },
+        params: { name: 'find', arguments: args },
       },
-      setSearchResult
+      setFindResult
     );
   }
 
-  async function runQuery() {
+  async function runPrint() {
+    const args: Record<string, any> = {};
+    if (printSceneNumber) args.sceneNumber = printSceneNumber;
+    if (printCharacter)
+      args.characters = printCharacter
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (printSetting) args.setting = printSetting;
+    if (printLocation) args.location = printLocation;
+    if (printTime) args.time = printTime;
     await callMcp(
       {
         jsonrpc: '2.0',
         id: Date.now(),
         method: 'tools/call',
-        params: { name: 'query_scenes', arguments: { query } },
+        params: { name: 'print', arguments: args },
       },
-      setQueryResult
+      setPrintResult
     );
   }
 
@@ -123,40 +148,88 @@ export default function McpTester() {
           </section>
 
           <section className="flex flex-col rounded border bg-white p-4 shadow">
-            <h2 className="mb-2 font-medium">Search Scenes</h2>
+            <h2 className="mb-2 font-medium">Find Scenes</h2>
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Scene number"
+              value={findSceneNumber}
+              onChange={(e) => setFindSceneNumber(e.target.value)}
+            />
             <input
               className="mb-2 rounded border p-2"
               placeholder="Comma-separated characters"
-              value={searchCharacter}
-              onChange={(e) => setSearchCharacter(e.target.value)}
+              value={findCharacter}
+              onChange={(e) => setFindCharacter(e.target.value)}
+            />
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Setting (INT or EXT)"
+              value={findSetting}
+              onChange={(e) => setFindSetting(e.target.value)}
+            />
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Location"
+              value={findLocation}
+              onChange={(e) => setFindLocation(e.target.value)}
+            />
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Time"
+              value={findTime}
+              onChange={(e) => setFindTime(e.target.value)}
             />
             <button
               className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
-              onClick={runSearch}
+              onClick={runFind}
             >
               Run
             </button>
             <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
-              {searchResult}
+              {findResult}
             </pre>
           </section>
 
           <section className="flex flex-col rounded border bg-white p-4 shadow">
-            <h2 className="mb-2 font-medium">Query Scenes</h2>
+            <h2 className="mb-2 font-medium">Print Scenes</h2>
             <input
               className="mb-2 rounded border p-2"
-              placeholder="e.g. give me all scenes with Paul and Ana"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Scene number"
+              value={printSceneNumber}
+              onChange={(e) => setPrintSceneNumber(e.target.value)}
+            />
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Comma-separated characters"
+              value={printCharacter}
+              onChange={(e) => setPrintCharacter(e.target.value)}
+            />
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Setting (INT or EXT)"
+              value={printSetting}
+              onChange={(e) => setPrintSetting(e.target.value)}
+            />
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Location"
+              value={printLocation}
+              onChange={(e) => setPrintLocation(e.target.value)}
+            />
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Time"
+              value={printTime}
+              onChange={(e) => setPrintTime(e.target.value)}
             />
             <button
               className="rounded bg-purple-600 px-3 py-1 text-white hover:bg-purple-700"
-              onClick={runQuery}
+              onClick={runPrint}
             >
               Run
             </button>
             <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
-              {queryResult}
+              {printResult}
             </pre>
           </section>
         </div>
