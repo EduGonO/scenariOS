@@ -28,6 +28,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
   const [filterChar, setFilterChar] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
   const viewerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const sceneRefs = useRef<HTMLDivElement[]>([]);
 
   const colorMap = useMemo(() => {
@@ -47,22 +48,32 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
   }, [filterChar]);
 
   useEffect(() => {
-    if (!viewerRef.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const idx = Number((entry.target as HTMLElement).dataset.index);
-            setActiveScene(idx);
-          }
-        });
-      },
-      { root: viewerRef.current, threshold: 0, rootMargin: '0px 0px -80% 0px' }
-    );
+    const container = viewerRef.current;
+    if (!container) return;
 
-    sceneRefs.current.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
+    const onScroll = () => {
+      const top = container.scrollTop + 8;
+      let current = 0;
+      for (let i = sceneRefs.current.length - 1; i >= 0; i--) {
+        const el = sceneRefs.current[i];
+        if (el && el.offsetTop <= top) {
+          current = i;
+          break;
+        }
+      }
+      setActiveScene(current);
+    };
+
+    onScroll();
+    container.addEventListener('scroll', onScroll);
+    return () => container.removeEventListener('scroll', onScroll);
   }, [filteredScenes]);
+
+  useEffect(() => {
+    if (activeScene === null) return;
+    const el = listRef.current?.children[activeScene] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [activeScene]);
 
   function normalize(tok: string) {
     return cleanName(tok.toUpperCase()).replace(/'S?$/, '');
@@ -86,17 +97,21 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
     });
   }
 
-  const displayedChars = useMemo(() => {
+  const { presentChars, otherChars } = useMemo(() => {
+    let present: CharacterStats[] = [];
     if (filterChar) {
       const set = new Set<string>();
       filteredScenes.forEach((s) => s.characters.forEach((c) => set.add(c)));
-      return characters.filter((c) => set.has(c.name));
-    }
-    if (activeScene !== null) {
+      present = characters.filter((c) => set.has(c.name));
+    } else if (activeScene !== null) {
       const sceneChars = filteredScenes[activeScene]?.characters || [];
-      return characters.filter((c) => sceneChars.includes(c.name));
+      present = characters.filter((c) => sceneChars.includes(c.name));
+    } else {
+      present = characters;
     }
-    return characters;
+    const names = new Set(present.map((c) => c.name));
+    const others = characters.filter((c) => !names.has(c.name));
+    return { presentChars: present, otherChars: others };
   }, [characters, filteredScenes, activeScene, filterChar]);
 
   if (!scenes.length) return null;
@@ -140,7 +155,10 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         </div>
       </div>
       <div className="flex flex-1 gap-6 overflow-hidden">
-        <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white">
+        <div
+          className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white"
+          ref={listRef}
+        >
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.number || originalIdx + 1;
@@ -157,7 +175,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                     block: 'start',
                   });
                 }}
-                className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 ${
+                className={`block w-full border-b px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
                   activeScene === idx ? 'bg-gray-100 font-medium' : ''
                 }`}
               >
@@ -191,9 +209,9 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
                   if (el) sceneRefs.current[idx] = el;
                 }}
                 data-index={idx}
-                className="relative"
+                className="relative pt-6"
               >
-                <div className="sticky top-0 z-10 rounded-b-xl border-b border-gray-200 bg-white/60 px-6 py-3 backdrop-blur-sm">
+                <div className="sticky top-0 -mt-6 z-10 rounded-b-xl border-b border-gray-200 bg-white/60 px-6 py-3 backdrop-blur-sm">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold text-gray-700">{`${displayNumber}. ${rest}`}</span>
                     {type && (
@@ -230,56 +248,98 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
           })}
         </div>
       </div>
-      <div className="mt-4 flex gap-4 overflow-x-auto pb-2 min-h-[7rem]">
+      <div className="mt-4 flex items-start gap-6 overflow-x-auto pb-3 min-h-[5rem]">
         {filterChar && (
           <button
             onClick={() => {
               setFilterChar(null);
               setActiveScene(null);
             }}
-            className="flex-shrink-0 rounded-lg border bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:bg-gray-50"
+            className="flex-shrink-0 self-start rounded-lg border bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50"
           >
             Reset
           </button>
         )}
-        {displayedChars.length ? (
-          displayedChars.map((char) => (
-            <button
-              key={char.name}
-              onClick={() => {
-                const next = filterChar === char.name ? null : char.name;
-                setFilterChar(next);
-                if (next) {
-                  setActiveScene(0);
-                  setTimeout(() => {
-                    sceneRefs.current[0]?.scrollIntoView({
-                      behavior: 'smooth',
-                      block: 'start',
-                    });
-                  }, 0);
-                } else {
-                  setActiveScene(null);
-                }
-              }}
-              className={`flex-shrink-0 rounded-lg border bg-white px-3 py-2 text-left hover:bg-gray-50 ${
-                filterChar === char.name ? 'bg-gray-100 font-medium' : ''
-              }`}
-            >
-              <span
-                className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}
-              >
-                {char.name}
-              </span>
-              <div className="mt-1 text-xs text-gray-600">
-                <div>{char.sceneCount} scenes</div>
-                <div>{char.dialogueCount} dialogues</div>
-              </div>
-            </button>
-          ))
-        ) : (
-          <div className="flex items-center text-sm text-gray-500">
-            No characters
+        {presentChars.length ? (
+          <div className="flex flex-col gap-1 flex-none">
+            <span className="text-[10px] text-gray-500">Characters present</span>
+            <div className="flex gap-4">
+              {presentChars.map((char) => (
+                <button
+                  key={char.name}
+                  onClick={() => {
+                    const next = filterChar === char.name ? null : char.name;
+                    setFilterChar(next);
+                    if (next) {
+                      setActiveScene(0);
+                      setTimeout(() => {
+                        sceneRefs.current[0]?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'start',
+                        });
+                      }, 0);
+                    } else {
+                      setActiveScene(null);
+                    }
+                  }}
+                  className={`flex-shrink-0 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
+                    filterChar === char.name ? 'bg-gray-100 font-medium' : ''
+                  }`}
+                >
+                  <span
+                    className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}
+                  >
+                    {char.name}
+                  </span>
+                  <div className="mt-1 text-[10px] leading-tight text-gray-600">
+                    <div>{char.sceneCount} scenes</div>
+                    <div>{char.dialogueCount} dialogues</div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
+        ) : null}
+        {otherChars.length ? (
+          <div className="flex flex-col gap-1 flex-none">
+            <span className="text-[10px] text-gray-400">Other characters</span>
+            <div className="flex gap-4 opacity-40 grayscale">
+              {otherChars.map((char) => (
+                <button
+                  key={char.name}
+                  onClick={() => {
+                    const next = filterChar === char.name ? null : char.name;
+                    setFilterChar(next);
+                    if (next) {
+                      setActiveScene(0);
+                      setTimeout(() => {
+                        sceneRefs.current[0]?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'start',
+                        });
+                      }, 0);
+                    } else {
+                      setActiveScene(null);
+                    }
+                  }}
+                  className={`flex-shrink-0 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
+                    filterChar === char.name ? 'bg-gray-100 font-medium' : ''
+                  }`}
+                >
+                  <span className="block rounded px-1 font-semibold bg-gray-200 text-gray-800">
+                    {char.name}
+                  </span>
+                  <div className="mt-1 text-[10px] leading-tight text-gray-600">
+                    <div>{char.sceneCount} scenes</div>
+                    <div>{char.dialogueCount} dialogues</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {!presentChars.length && !otherChars.length && (
+          <div className="flex items-center text-sm text-gray-500">No characters</div>
         )}
       </div>
     </div>

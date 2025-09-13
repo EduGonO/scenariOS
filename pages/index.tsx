@@ -35,7 +35,7 @@ export default function Home() {
 
   function extractMetadata(text: string): [string, string] {
     const pages = text.split('\f');
-    const firstPage = pages.find((p) => p.trim().length) || '';
+    const firstPage = pages[0] || '';
     const lines = firstPage
       .split(/\r?\n/)
       .map((l) => l.trim())
@@ -52,7 +52,7 @@ export default function Home() {
       style={{ height: '100dvh' }}
     >
       <div className="w-full max-w-5xl flex h-full flex-col p-6 overflow-hidden">
-        <h1 className="text-center text-4xl font-light tracking-tight text-gray-900">
+        <h1 className="mx-auto mb-4 rounded-full bg-white/70 px-8 py-3 text-center text-5xl font-light tracking-tight text-gray-900 shadow-sm backdrop-blur">
           scenariOS
         </h1>
         {!scenes.length ? (
@@ -63,9 +63,11 @@ export default function Home() {
             <FileUploader onFile={processFile} loading={loading} />
           </>
         ) : (
-          <div className="mt-6 mb-2 text-center">
-            <h2 className="text-3xl font-semibold text-gray-900">{title}</h2>
-            <p className="text-gray-600">by {author}</p>
+          <div className="mt-6 mb-4 text-center">
+            <div className="inline-block rounded-xl bg-white/70 px-8 py-4 shadow-sm backdrop-blur">
+              <h2 className="text-4xl font-semibold text-gray-900">{title}</h2>
+              <p className="mt-1 text-lg text-gray-600">by {author}</p>
+            </div>
           </div>
         )}
         {scenes.length > 0 && (
