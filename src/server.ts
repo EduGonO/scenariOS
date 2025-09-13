@@ -62,25 +62,64 @@ export const getServer = (): McpServer => {
     },
   );
 
+  const searchShape = {
+    setting: z.enum(["INT", "EXT"]).optional(),
+    location: z.string().optional(),
+    time: z.string().optional(),
+    characters: z.array(z.string()).optional(),
+  };
+  const searchSchema = z.object(searchShape);
+  type SearchParams = z.infer<typeof searchSchema>;
+
+  function filterScenes({ setting, location, time, characters }: SearchParams) {
+    return sceneStore.filter((s) =>
+      (!setting || s.setting === setting) &&
+      (!location || s.location.toLowerCase().includes(location.toLowerCase())) &&
+      (!time || s.time.toLowerCase().includes(time.toLowerCase())) &&
+      (!characters || characters.every((c) => s.characters.includes(c))),
+    );
+  }
+
   server.tool(
     "search_scenes",
     "Search previously parsed scenes",
-    {
-      setting: z.enum(["INT", "EXT"]).optional(),
-      location: z.string().optional(),
-      time: z.string().optional(),
-      character: z.string().optional(),
+    searchShape,
+    async (params: SearchParams): Promise<CallToolResult> => {
+      const results = filterScenes(params);
+      return { content: [{ type: "text", text: JSON.stringify(results) }] };
     },
-    async ({ setting, location, time, character }): Promise<CallToolResult> => {
-      const results = sceneStore.filter((s) =>
-        (!setting || s.setting === setting) &&
-        (!location || s.location.toLowerCase().includes(location.toLowerCase())) &&
-        (!time || s.time.toLowerCase().includes(time.toLowerCase())) &&
-        (!character || s.characters.includes(character)),
-      );
-      return {
-        content: [{ type: "text", text: JSON.stringify(results) }],
-      };
+  );
+
+  server.tool(
+    "query_scenes",
+    "Natural language scene search",
+    { query: z.string() },
+    async ({ query }): Promise<CallToolResult> => {
+      const apiKey = process.env.MISTRAL_API_KEY;
+      if (!apiKey) throw new Error("MISTRAL_API_KEY not set");
+      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "mistral-small-latest",
+          messages: [
+            {
+              role: "user",
+              content: `Extract search filters as JSON with keys setting (INT or EXT), location, time, characters (array). Query: ${query}`,
+            },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (!res.ok) throw new Error(`Mistral API error ${res.status}`);
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content ?? "{}";
+      const params = searchSchema.parse(JSON.parse(content));
+      const results = filterScenes(params);
+      return { content: [{ type: "text", text: JSON.stringify(results) }] };
     },
   );
 

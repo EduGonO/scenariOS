@@ -13,6 +13,8 @@ export default function Home() {
   const [parseResult, setParseResult] = useState('');
   const [searchCharacter, setSearchCharacter] = useState('');
   const [searchResult, setSearchResult] = useState('');
+  const [query, setQuery] = useState('');
+  const [queryResult, setQueryResult] = useState('');
 
   async function processFile(file: File) {
     setLoading(true);
@@ -70,7 +72,11 @@ export default function Home() {
       },
     });
     const text = data.result?.content?.[0]?.text ?? '';
-    setParseResult(text);
+    try {
+      setParseResult(JSON.stringify(JSON.parse(text), null, 2));
+    } catch {
+      setParseResult(text);
+    }
   }
 
   async function searchScenes() {
@@ -80,11 +86,37 @@ export default function Home() {
       method: 'call_tool',
       params: {
         name: 'search_scenes',
-        arguments: { character: searchCharacter },
+        arguments: {
+          characters: searchCharacter
+            ? searchCharacter.split(',').map((s) => s.trim()).filter(Boolean)
+            : undefined,
+        },
       },
     });
     const text = data.result?.content?.[0]?.text ?? '';
-    setSearchResult(text);
+    try {
+      setSearchResult(JSON.stringify(JSON.parse(text), null, 2));
+    } catch {
+      setSearchResult(text);
+    }
+  }
+
+  async function queryScenes() {
+    const data = await callMcp({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'call_tool',
+      params: {
+        name: 'query_scenes',
+        arguments: { query },
+      },
+    });
+    const text = data.result?.content?.[0]?.text ?? '';
+    try {
+      setQueryResult(JSON.stringify(JSON.parse(text), null, 2));
+    } catch {
+      setQueryResult(text);
+    }
   }
 
   return (
@@ -143,6 +175,23 @@ export default function Home() {
             </button>
             <pre className="whitespace-pre-wrap break-words text-sm">
               {searchResult}
+            </pre>
+          </div>
+          <div className="space-y-2">
+            <input
+              className="w-full rounded border p-2"
+              placeholder="Natural language query"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <button
+              className="rounded bg-purple-600 px-3 py-1 text-white"
+              onClick={queryScenes}
+            >
+              Query Scenes
+            </button>
+            <pre className="whitespace-pre-wrap break-words text-sm">
+              {queryResult}
             </pre>
           </div>
         </div>
