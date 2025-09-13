@@ -150,7 +150,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white" ref={listRef}>
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
-            const displayNumber = scene.number || originalIdx + 1;
+            const displayNumber = scene.sceneNumber || originalIdx + 1;
             const type = scene.setting;
             const rest = scene.location;
             return (
@@ -188,7 +188,7 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         <div ref={viewerRef} className="flex-1 overflow-y-auto px-6 pb-6 pt-0 space-y-8">
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
-            const displayNumber = scene.number || originalIdx + 1;
+            const displayNumber = scene.sceneNumber || originalIdx + 1;
             return (
               <div
                 key={idx}

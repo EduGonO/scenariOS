@@ -13,7 +13,7 @@ export type ScenePart = Dialogue | Direction;
 
 export interface Scene {
   heading: string;
-  number?: string;
+  sceneNumber: number;
   parts: ScenePart[];
   characters: string[];
   setting: string;
@@ -30,7 +30,38 @@ export interface CharacterStats {
 
 const HEADING_REGEX = /^(\s*)(\d+\.?\s*)?(INT\.\/EXT\.|EXT\/INT\.|INT\/EXT|EXT\/INT|INT\.|EXT\.)\s*(.*)$/i;
 const CHAR_LINE_REGEX = /^\s{0,20}([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9\s'().-]+)$/;
-const STOP_WORDS = new Set(["INT", "EXT", "CUT", "FADE", "DAY", "NIGHT", "TO", "THE", "A", "AN", "AND"]);
+const STOP_WORDS = new Set([
+  "INT",
+  "EXT",
+  "CUT",
+  "FADE",
+  "DAY",
+  "NIGHT",
+  "TO",
+  "THE",
+  "A",
+  "AN",
+  "AND",
+  "LA",
+  "EL",
+  "LOS",
+  "LAS",
+  "DE",
+  "DEL",
+  "AL",
+  "UN",
+  "UNA",
+  "UNOS",
+  "UNAS",
+  "Y",
+  "O",
+  "CON",
+  "POR",
+  "PARA",
+  "EN",
+  "SE",
+  "SU",
+]);
 
 export function cleanName(raw: string): string {
   return raw
@@ -42,6 +73,10 @@ export function cleanName(raw: string): string {
     .toUpperCase();
 }
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function parseScript(text: string): {
   scenes: Scene[];
   characters: CharacterStats[];
@@ -51,11 +86,13 @@ export function parseScript(text: string): {
 
   let current: Scene | null = null;
   let currentDialogue: Dialogue | null = null;
+  let currentDirection: string[] = [];
   let sceneCharacters: Set<string> = new Set();
 
   function pushCurrentDialogue() {
     if (!current || !currentDialogue) return;
-    if (currentDialogue.text.trim()) {
+    currentDialogue.text = currentDialogue.text.trim();
+    if (currentDialogue.text) {
       sceneCharacters.add(currentDialogue.character);
       const stat = charStats.get(currentDialogue.character) || {
         scenes: new Set<number>(),
@@ -70,6 +107,36 @@ export function parseScript(text: string): {
     currentDialogue = null;
   }
 
+  function pushCurrentDirection() {
+    if (!current || !currentDirection.length) return;
+    const text = currentDirection.join(" ").replace(/\s+/g, " ").trim();
+    if (text) {
+      current.parts.push({ type: "direction", text });
+      const caps =
+        text.match(/\b[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-ß0-9'()]*\b(?:\s+\b[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-ß0-9'()]*\b)*/g) || [];
+      for (const word of caps) {
+        const name = cleanName(word.trim());
+        if (!STOP_WORDS.has(name) && name.length > 1) {
+          sceneCharacters.add(name);
+        }
+      }
+    }
+    currentDirection = [];
+  }
+
+  function finalizeScene() {
+    if (!current) return;
+    pushCurrentDialogue();
+    pushCurrentDirection();
+    current.characters = Array.from(sceneCharacters);
+    scenes.push(current);
+    for (const name of current.characters) {
+      const stat = charStats.get(name) || { scenes: new Set<number>(), dialogueCount: 0 };
+      stat.scenes.add(current.sceneNumber);
+      charStats.set(name, stat);
+    }
+  }
+
   const lines = text.split(/\r?\n/);
 
   for (const rawLine of lines) {
@@ -77,25 +144,17 @@ export function parseScript(text: string): {
     const headingMatch = line.match(HEADING_REGEX);
 
     if (headingMatch) {
-      if (current) {
-        pushCurrentDialogue();
-        current.characters = Array.from(sceneCharacters);
-        scenes.push(current);
-        const sceneIndex = scenes.length;
-        const sceneNumber =
-          current.number && !isNaN(parseInt(current.number, 10)) ? parseInt(current.number, 10) : sceneIndex;
-        for (const name of Array.from(sceneCharacters)) {
-          const stat = charStats.get(name) || {
-            scenes: new Set<number>(),
-            dialogueCount: 0,
-          };
-          stat.scenes.add(sceneNumber);
-          charStats.set(name, stat);
+      finalizeScene();
+      let numberStr = headingMatch[2]?.trim().replace(/\.$/, "");
+      let afterSetting = headingMatch[4].trim();
+      if (!numberStr) {
+        const trailing = afterSetting.match(/(.*?)(\d+)$/);
+        if (trailing) {
+          afterSetting = trailing[1].trim();
+          numberStr = trailing[2];
         }
       }
-      const number = headingMatch[2]?.trim().replace(/\.$/, "") || undefined;
       const setting = headingMatch[3].replace(/\.$/, "").toUpperCase();
-      const afterSetting = headingMatch[4].trim();
       let location = afterSetting;
       let time = "";
       const dashIdx = afterSetting.lastIndexOf(" - ");
@@ -103,10 +162,11 @@ export function parseScript(text: string): {
         location = afterSetting.slice(0, dashIdx).trim();
         time = afterSetting.slice(dashIdx + 3).trim();
       }
-      const heading = `${headingMatch[3]} ${afterSetting}`.trim();
+      const headingText = `${headingMatch[3]} ${afterSetting}`.trim();
+      const sceneNumber = numberStr ? parseInt(numberStr, 10) : scenes.length + 1;
       current = {
-        heading,
-        number,
+        heading: headingText,
+        sceneNumber,
         parts: [],
         characters: [],
         setting,
@@ -114,6 +174,7 @@ export function parseScript(text: string): {
         time,
       };
       currentDialogue = null;
+      currentDirection = [];
       sceneCharacters = new Set();
       continue;
     }
@@ -124,12 +185,14 @@ export function parseScript(text: string): {
 
     if (!trimmed) {
       pushCurrentDialogue();
+      pushCurrentDirection();
       continue;
     }
 
     const charMatch = trimmed.match(CHAR_LINE_REGEX);
     if (charMatch && trimmed === trimmed.toUpperCase()) {
       pushCurrentDialogue();
+      pushCurrentDirection();
       const name = cleanName(charMatch[1].trim());
       if (name) {
         currentDialogue = { type: "dialogue", character: name, text: "" };
@@ -138,38 +201,15 @@ export function parseScript(text: string): {
     }
 
     if (currentDialogue) {
-      currentDialogue.text += (currentDialogue.text ? "\n" : "") + trimmed;
+      currentDialogue.text += (currentDialogue.text ? " " : "") + trimmed;
       continue;
     }
 
-    current.parts.push({ type: "direction", text: trimmed });
-    if (/CUT TO(\s|:)/i.test(trimmed)) {
-      continue;
-    }
-    const caps =
-      trimmed.match(/[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'.-]*(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'.-]*)*/g) ||
-      [];
-    for (const word of caps) {
-      const name = cleanName(word.trim());
-      if (!STOP_WORDS.has(name) && name.length > 1) {
-        sceneCharacters.add(name);
-      }
-    }
+    currentDirection.push(trimmed);
   }
 
-  if (current) {
-    pushCurrentDialogue();
-    current.characters = Array.from(sceneCharacters);
-    scenes.push(current);
-    const sceneIndex = scenes.length;
-    const sceneNumber =
-      current.number && !isNaN(parseInt(current.number, 10)) ? parseInt(current.number, 10) : sceneIndex;
-    for (const name of Array.from(sceneCharacters)) {
-      const stat = charStats.get(name) || { scenes: new Set<number>(), dialogueCount: 0 };
-      stat.scenes.add(sceneNumber);
-      charStats.set(name, stat);
-    }
-  }
+  finalizeScene();
+
   const characters: CharacterStats[] = Array.from(charStats.entries())
     .map(([name, stat]) => ({
       name,
@@ -181,7 +221,20 @@ export function parseScript(text: string): {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const charSet = new Set(characters.map((c) => c.name));
+  const namePattern = Array.from(charSet)
+    .sort((a, b) => b.length - a.length)
+    .map((n) => escapeRegExp(n))
+    .join("|");
+  const nameRegex = namePattern ? new RegExp(`\b(${namePattern})\b`, "gi") : null;
   for (const scene of scenes) {
+    for (const part of scene.parts) {
+      if (!nameRegex) continue;
+      if (part.type === "direction") {
+        part.text = part.text.replace(nameRegex, (m) => cleanName(m));
+      } else if (part.type === "dialogue") {
+        part.text = part.text.replace(nameRegex, (m) => cleanName(m));
+      }
+    }
     scene.characters = scene.characters.filter((c) => charSet.has(c));
   }
 
