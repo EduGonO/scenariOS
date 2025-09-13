@@ -1,9 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { parseScript } from "../utils/parseScript";
 
 const SceneInfo = z.object({
-  setting: z.enum(["INT", "EXT"]),
+  setting: z.string(),
   location: z.string(),
   time: z.string(),
   characters: z.array(z.string()).default([]),
@@ -11,33 +12,6 @@ const SceneInfo = z.object({
 
 type Scene = z.infer<typeof SceneInfo> & { id: string; raw: string };
 const sceneStore: Scene[] = [];
-
-async function parseWithMistral(text: string) {
-  const apiKey = process.env["MISTRAL_API_KEY"];
-  if (!apiKey) throw new Error("MISTRAL_API_KEY not set");
-  const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "mistral-small-latest",
-      messages: [
-        {
-          role: "user",
-          content:
-            `Extract scene metadata as JSON with keys setting (INT or EXT), location, time, characters (array of uppercase names). Scene: ${text}`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
-  if (!res.ok) throw new Error(`Mistral API error ${res.status}`);
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content ?? "{}";
-  return SceneInfo.parse(JSON.parse(content));
-}
 
 export const getServer = (): McpServer => {
   const server = new McpServer(
@@ -47,30 +21,52 @@ export const getServer = (): McpServer => {
 
   server.tool(
     "parse_scene",
-    "Parse a script scene and store metadata",
+    "Store scene metadata",
     {
       id: z.string().describe("Unique scene id"),
-      text: z.string().describe("Scene heading or description"),
+      text: z.string().optional().describe("Raw scene text"),
+      setting: z.string().optional(),
+      location: z.string().optional(),
+      time: z.string().optional(),
+      characters: z.array(z.string()).optional(),
     },
-    async ({ id, text }): Promise<CallToolResult> => {
-      const meta = await parseWithMistral(text);
-      const scene = {
+    async ({ id, text, setting, location, time, characters }): Promise<CallToolResult> => {
+      let meta: z.infer<typeof SceneInfo>;
+      let raw = text || "";
+      if (!setting || !location || !time) {
+        if (!text) throw new Error("text required when metadata missing");
+        const parsed = parseScript(text);
+        const first = parsed.scenes[0];
+        if (!first) throw new Error("unable to parse scene");
+        meta = {
+          setting: first.setting,
+          location: first.location,
+          time: first.time,
+          characters: first.characters,
+        };
+      } else {
+        meta = {
+          setting,
+          location,
+          time,
+          characters: characters?.map((c) => c.toUpperCase()) || [],
+        };
+      }
+      const scene: Scene = {
         id,
-        raw: text,
+        raw,
         ...meta,
         characters: meta.characters.map((c) => c.toUpperCase()),
       };
       sceneStore.push(scene);
-      return {
-        content: [{ type: "text", text: JSON.stringify(scene) }],
-      };
+      return { content: [{ type: "text", text: JSON.stringify(scene) }] };
     },
   );
 
   const findShape = {
     sceneNumber: z.string().optional(),
     characters: z.array(z.string()).optional(),
-    setting: z.enum(["INT", "EXT"]).optional(),
+    setting: z.string().optional(),
     location: z.string().optional(),
     time: z.string().optional(),
   };
@@ -82,7 +78,7 @@ export const getServer = (): McpServer => {
     return sceneStore.filter(
       (s) =>
         (!sceneNumber || s.id === sceneNumber) &&
-        (!setting || s.setting === setting) &&
+        (!setting || s.setting.toLowerCase() === setting.toLowerCase()) &&
         (!location || s.location.toLowerCase().includes(location.toLowerCase())) &&
         (!time || s.time.toLowerCase().includes(time.toLowerCase())) &&
         (!chars || chars.every((c) => s.characters.includes(c))),

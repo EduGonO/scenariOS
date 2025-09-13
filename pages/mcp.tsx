@@ -16,6 +16,7 @@ export default function McpTester() {
   const [printLocation, setPrintLocation] = useState('');
   const [printTime, setPrintTime] = useState('');
   const [printResult, setPrintResult] = useState('');
+  const [metaResult, setMetaResult] = useState('');
 
   async function callMcp(body: any, setter: (s: string) => void) {
     setter('');
@@ -113,6 +114,18 @@ export default function McpTester() {
         params: { name: 'print', arguments: args },
       },
       setPrintResult
+    );
+  }
+
+  async function refreshMeta() {
+    await callMcp(
+      {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/call',
+        params: { name: 'find', arguments: {} },
+      },
+      setMetaResult,
     );
   }
 
@@ -233,6 +246,20 @@ export default function McpTester() {
             </pre>
           </section>
         </div>
+        <section className="mt-6 flex flex-col rounded border bg-white p-4 shadow">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-medium">Debug Stored Scenes</h2>
+            <button
+              onClick={refreshMeta}
+              className="rounded bg-gray-200 px-2 py-1 text-sm hover:bg-gray-300"
+            >
+              Refresh
+            </button>
+          </div>
+          <pre className="h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
+            {metaResult}
+          </pre>
+        </section>
       </div>
     </main>
   );
