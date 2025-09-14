@@ -5,7 +5,7 @@ import { parseScript } from "../utils/parseScript";
 import type { Scene as ParsedScene, ScenePart } from "../utils/parseScript";
 import { createPdfCallSheet } from "../utils/google";
 import PDFDocument from "pdfkit";
-import { marked } from "marked";
+import { decodeHtmlEntities } from "../utils/text";
 
 const SceneInfo = z.object({
   setting: z.string(),
@@ -566,42 +566,10 @@ export const getServer = (): McpServer => {
     return await new Promise((resolve) => {
       doc.on("data", (c: Buffer) => chunks.push(c));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
-      const tokens = marked.lexer(md);
-      const renderInline = (toks: any[]) => {
-        toks.forEach((tok) => {
-          if (tok.type === "strong") {
-            doc.font("Helvetica-Bold").text(tok.text, { continued: true });
-            doc.font("Helvetica");
-          } else if (tok.type === "codespan") {
-            doc.font("Courier").text(tok.text, { continued: true });
-            doc.font("Helvetica");
-          } else if (tok.type === "text") {
-            doc.text(tok.text, { continued: true });
-          } else if (tok.type === "space") {
-            doc.text(" ", { continued: true });
-          } else if (tok.type === "br") {
-            doc.text("");
-          }
-        });
-        doc.text("");
-      };
-      const renderTokens = (toks: any[]) => {
-        toks.forEach((token) => {
-          if (token.type === "paragraph") {
-            renderInline(token.tokens || []);
-            doc.moveDown();
-          } else if (token.type === "text") {
-            renderInline(token.tokens || [token]);
-            doc.moveDown();
-          } else if (token.type === "space") {
-            doc.moveDown();
-          } else {
-            doc.text(token.raw);
-            doc.moveDown();
-          }
-        });
-      };
-      renderTokens(tokens);
+      const clean = decodeHtmlEntities(
+        md.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]*)`/g, "$1"),
+      );
+      doc.font("Courier").fontSize(12).text(clean, { lineGap: 4 });
       doc.end();
     });
   }
@@ -696,18 +664,27 @@ export const getServer = (): McpServer => {
     },
   );
 
+  async function handlePrintQuery(prompt: string): Promise<CallToolResult> {
+    const parsed = await promptToParams(prompt);
+    const results = filterScenes(parsed);
+    if (!results.length)
+      return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+    const formatted = results.map(formatScene).join("\n\n");
+    return { content: [{ type: "text", text: formatted }] };
+  }
+
+  server.tool(
+    "print_query",
+    "Print scenes using a natural language prompt",
+    { prompt: z.string().describe("Natural language description of desired scenes") },
+    async ({ prompt }): Promise<CallToolResult> => handlePrintQuery(prompt),
+  );
+
   server.tool(
     "query_scenes",
-    "Find and print scenes using a natural language prompt",
+    "Alias of print_query",
     { prompt: z.string().describe("Natural language description of desired scenes") },
-    async ({ prompt }): Promise<CallToolResult> => {
-      const parsed = await promptToParams(prompt);
-      const results = filterScenes(parsed);
-      if (!results.length)
-        return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
-      const formatted = results.map(formatScene).join("\n\n");
-      return { content: [{ type: "text", text: formatted }] };
-    },
+    async ({ prompt }): Promise<CallToolResult> => handlePrintQuery(prompt),
   );
 
   server.tool(
@@ -723,6 +700,19 @@ export const getServer = (): McpServer => {
         results = filterScenes(parsed);
       }
       if (!results.length) return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+      return { content: [{ type: "text", text: results.length.toString() }] };
+    },
+  );
+
+  server.tool(
+    "count_query",
+    "Count scenes using a natural language prompt",
+    { prompt: z.string().describe("Natural language description of desired scenes") },
+    async ({ prompt }): Promise<CallToolResult> => {
+      const parsed = await promptToParams(prompt);
+      const results = filterScenes(parsed);
+      if (!results.length)
+        return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
       return { content: [{ type: "text", text: results.length.toString() }] };
     },
   );

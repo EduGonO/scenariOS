@@ -10,6 +10,8 @@ scenariOS transforms raw film scripts into a schedule-aware production assistant
 - Compact map showing the primary location and nearby backups with distances in kilometers plus a "show similar" option.
 - Weather panel forecasting temperature, rain, clouds, visibility, and golden-hour range for the chosen date and place.
 - Rich scene queries such as "print all scheduled scenes" or "how many scenes have more than 3 dates".
+- Natural-language helpers like "how many scenes do Mark and Eduardo share?" or "print scene 24".
+- PDF exports use a clean Courier layout without stray HTML entities.
 - Built-in MCP inspector at `/debug` for exercising tools directly in the browser.
 
 ## MCP Tools
@@ -21,8 +23,9 @@ scenariOS transforms raw film scripts into a schedule-aware production assistant
 | `find` | Return scenes matching attributes such as characters, time or scheduled dates. |
 | `print` | Render matching scenes as formatted markdown. |
 | `print_pdf` | Render matching scenes as a downloadable PDF. |
-| `query_scenes` | Natural language scene search. |
+| `print_query` | Natural language scene search. |
 | `count` | Count scenes matching filters. |
+| `count_query` | Count scenes using a natural language prompt. |
 | `characters` | List characters and assigned actors. |
 | `assign_actor` | Attach actor name/email to a character. |
 | `create_call_sheet_pdf` | Generate and share a PDF call sheet for scenes. |
