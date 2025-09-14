@@ -689,29 +689,6 @@ export const getServer = (): McpServer => {
   );
 
   server.tool(
-    "assign_actor",
-    "Assign actor and contact to a character",
-    {
-      character: z.string(),
-      actorName: z.string(),
-      actorEmail: z.string().optional(),
-    },
-    async ({ character, actorName, actorEmail }): Promise<CallToolResult> => {
-      const norm = normalizeName(character);
-      let entry = characterStore.find((c) => normalizeName(c.name) === norm);
-      if (!entry) {
-        entry = { name: character };
-        characterStore.push(entry);
-      } else {
-        entry.name = entry.name || character;
-      }
-      entry.actorName = actorName;
-      entry.actorEmail = actorEmail;
-      return { content: [{ type: "text", text: JSON.stringify(entry) }] };
-    },
-  );
-
-  server.tool(
     "update_scene",
     "Add or remove shooting dates or locations",
     {

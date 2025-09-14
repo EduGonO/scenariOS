@@ -148,8 +148,8 @@ export default function ScriptDisplay({
         a.download = "scenes.pdf";
         a.click();
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Failed to export scenes", err);
     }
   }
 
