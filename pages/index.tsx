@@ -13,6 +13,29 @@ export default function Home() {
   const [author, setAuthor] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
 
+  async function fetchAllScenes(): Promise<Scene[]> {
+    const res = await fetch("/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: "find", arguments: {} },
+      }),
+    });
+    const data = await res.json();
+    const text = data?.result?.content?.[0]?.text;
+    try {
+      return text ? JSON.parse(text) : [];
+    } catch {
+      return [];
+    }
+  }
+
   async function processFile(file: File) {
     setLoading(true);
     const reader = new FileReader();
@@ -38,6 +61,11 @@ export default function Home() {
         localStorage.setItem("author", scriptAuthor);
       }
       await registerScenes(parsedScenes);
+      const storedScenes = await fetchAllScenes();
+      setScenes(storedScenes);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scenes", JSON.stringify(storedScenes));
+      }
       setLoading(false);
     };
     reader.readAsDataURL(file);
@@ -90,6 +118,14 @@ export default function Home() {
     }
   }
 
+  function assignActor(character: string, actorName: string, actorEmail: string) {
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.name === character ? { ...c, actorName, actorEmail } : c,
+      ),
+    );
+  }
+
   return (
     <main
       className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
@@ -127,7 +163,11 @@ export default function Home() {
         )}
         {scenes.length > 0 && (
           <div className="flex-1 overflow-hidden">
-            <ScriptDisplay scenes={scenes} characters={characters} />
+            <ScriptDisplay
+              scenes={scenes}
+              characters={characters}
+              onAssignActor={assignActor}
+            />
           </div>
         )}
       </div>

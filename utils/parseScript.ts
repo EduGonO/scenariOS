@@ -19,6 +19,12 @@ export interface Scene {
   setting: string;
   location: string;
   time: string;
+  /** Approximate duration of the scene in seconds */
+  sceneDuration?: number;
+  /** Potential dates when the scene can be shot */
+  shootingDates: string[];
+  /** Suggested real-world locations for shooting */
+  shootingLocations: string[];
 }
 
 export interface CharacterStats {
@@ -26,6 +32,10 @@ export interface CharacterStats {
   sceneCount: number;
   dialogueCount: number;
   scenes: number[];
+  /** Assigned actor name for the character */
+  actorName?: string;
+  /** Contact email for the actor */
+  actorEmail?: string;
 }
 
 const HEADING_REGEX = /^(\s*)(\d+\.?\s*)?(INT\.\/EXT\.|EXT\/INT\.|INT\/EXT|EXT\/INT|INT\.|EXT\.)\s*(.*)$/i;
@@ -168,6 +178,9 @@ export function parseScript(text: string): {
         setting,
         location,
         time,
+        sceneDuration: undefined,
+        shootingDates: [],
+        shootingLocations: [],
       };
       currentDialogue = null;
       currentDirection = [];

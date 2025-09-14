@@ -9,6 +9,9 @@ const SceneInfo = z.object({
   location: z.string(),
   time: z.string(),
   characters: z.array(z.string()).default([]),
+  sceneDuration: z.number().int().optional(),
+  shootingDates: z.array(z.string()).default([]),
+  shootingLocations: z.array(z.string()).default([]),
 });
 
 type Scene = z.infer<typeof SceneInfo> & { id: string; raw: string };
@@ -63,6 +66,71 @@ async function translateToEnglish(text?: string): Promise<string | undefined> {
   }
 }
 
+async function estimateDuration(text: string): Promise<number | undefined> {
+  const key = process.env.MISTRAL_API_KEY;
+  if (!key) return undefined;
+  try {
+    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "mistral-small-latest",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Estimate the screen time duration in seconds for the following film scene. Reply with ONLY a number.",
+          },
+          { role: "user", content: text },
+        ],
+      }),
+    });
+    const data = await res.json();
+    const out = parseInt(data?.choices?.[0]?.message?.content?.trim(), 10);
+    return Number.isFinite(out) ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function guessLocations(prompt: string): Promise<string[]> {
+  const key = process.env.MISTRAL_API_KEY;
+  if (!key) return [];
+  try {
+    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "mistral-small-latest",
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Suggest concise real-world filming locations based on the scene heading and description. Return a JSON object {locations: [string, ...]}.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+    const data = await res.json();
+    const text = data?.choices?.[0]?.message?.content?.trim();
+    if (!text) return [];
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed.locations)
+      ? parsed.locations.map((l: string) => l.trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export const getServer = (): McpServer => {
   const server = new McpServer({ name: "scenarios-server", version: "0.1.0" }, { capabilities: {} });
 
@@ -76,8 +144,21 @@ export const getServer = (): McpServer => {
       location: z.string().optional(),
       time: z.string().optional(),
       characters: z.array(z.string()).optional(),
+      sceneDuration: z.number().optional(),
+      shootingDates: z.array(z.string()).optional(),
+      shootingLocations: z.array(z.string()).optional(),
     },
-    async ({ id, text, setting, location, time, characters }): Promise<CallToolResult> => {
+    async ({
+      id,
+      text,
+      setting,
+      location,
+      time,
+      characters,
+      sceneDuration,
+      shootingDates,
+      shootingLocations,
+    }): Promise<CallToolResult> => {
       let meta: z.infer<typeof SceneInfo>;
       let raw = text || "";
       if (!setting || !location || !time) {
@@ -90,6 +171,9 @@ export const getServer = (): McpServer => {
           location: first.location,
           time: first.time,
           characters: first.characters,
+          sceneDuration: undefined,
+          shootingDates: [],
+          shootingLocations: [],
         };
       } else {
         meta = {
@@ -97,13 +181,26 @@ export const getServer = (): McpServer => {
           location,
           time,
           characters: characters?.map((c) => c.toUpperCase()) || [],
+          sceneDuration: undefined,
+          shootingDates: [],
+          shootingLocations: [],
         };
       }
+      const duration = sceneDuration ?? (raw ? await estimateDuration(raw) : undefined);
+      const locationsGuess =
+        shootingLocations && shootingLocations.length
+          ? shootingLocations
+          : raw
+          ? await guessLocations(raw)
+          : [];
       const scene: Scene = {
         id,
         raw,
         ...meta,
         characters: meta.characters.map((c) => c.toUpperCase()),
+        sceneDuration: duration,
+        shootingDates: shootingDates ?? [],
+        shootingLocations: locationsGuess,
       };
       const existingIndex = sceneStore.findIndex((s) => s.id === id);
       if (existingIndex !== -1) sceneStore.splice(existingIndex, 1);
@@ -125,13 +222,17 @@ export const getServer = (): McpServer => {
         const rawParts = sc.parts.map((p: ScenePart) =>
           p.type === "dialogue" ? `${p.character}\n${p.text}` : p.text,
         );
+        const raw = [sc.heading, ...rawParts].join("\n");
         const scene: Scene = {
           id: sc.sceneNumber.toString(),
-          raw: [sc.heading, ...rawParts].join("\n"),
+          raw,
           setting: sc.setting,
           location: sc.location,
           time: sc.time,
           characters: sc.characters,
+          sceneDuration: await estimateDuration(raw),
+          shootingDates: [],
+          shootingLocations: await guessLocations(raw),
         };
         sceneStore.push(scene);
       }
@@ -145,6 +246,9 @@ export const getServer = (): McpServer => {
     setting: z.string().optional(),
     location: z.string().optional(),
     time: z.string().optional(),
+    sceneDuration: z.union([z.string(), z.number()]).optional(),
+    shootingDate: z.string().optional(),
+    shootingLocation: z.string().optional(),
   };
   const findSchema = z.object(findShape);
 
@@ -154,6 +258,9 @@ export const getServer = (): McpServer => {
     setting?: string;
     location?: string;
     time?: string;
+    sceneDuration?: number;
+    shootingDate?: string;
+    shootingLocation?: string;
   };
 
   const TIME_SYNONYMS: Record<string, string[]> = {
@@ -170,7 +277,16 @@ export const getServer = (): McpServer => {
     raw: z.infer<typeof findSchema>,
     translate = false,
   ): Promise<FindParams> {
-    let { sceneNumber, characters, setting, location, time } = raw;
+    let {
+      sceneNumber,
+      characters,
+      setting,
+      location,
+      time,
+      sceneDuration,
+      shootingDate,
+      shootingLocation,
+    } = raw;
 
     if (typeof characters === "string") {
       const list = characters
@@ -191,14 +307,16 @@ export const getServer = (): McpServer => {
     }
 
     if (translate) {
-      [setting, location, time] = await Promise.all([
+      [setting, location, time, shootingLocation] = await Promise.all([
         translateToEnglish(setting),
         translateToEnglish(location),
         translateToEnglish(time),
+        translateToEnglish(shootingLocation),
       ]);
     }
 
     if (typeof sceneNumber === "number") sceneNumber = sceneNumber.toString();
+    if (typeof sceneDuration === "string") sceneDuration = parseInt(sceneDuration, 10);
 
     if (setting) {
       let s = setting;
@@ -213,7 +331,16 @@ export const getServer = (): McpServer => {
     }
 
     const chars = Array.isArray(characters) && characters.length ? (characters as string[]) : undefined;
-    return { sceneNumber, characters: chars, setting, location, time };
+    return {
+      sceneNumber,
+      characters: chars,
+      setting,
+      location,
+      time,
+      sceneDuration: typeof sceneDuration === "number" && !isNaN(sceneDuration) ? sceneDuration : undefined,
+      shootingDate,
+      shootingLocation,
+    };
   }
 
   async function promptToParams(prompt: string): Promise<FindParams> {
@@ -233,7 +360,7 @@ export const getServer = (): McpServer => {
             {
               role: "system",
               content:
-                "Extract film scene search filters from the user request. Return a JSON object with optional keys: sceneNumber, characters, setting, location, time. characters must be an array of names.",
+                "Extract film scene search filters from the user request. Return a JSON object with optional keys: sceneNumber, characters, setting, location, time, sceneDuration, shootingDate, shootingLocation. characters must be an array of names.",
             },
             { role: "user", content: prompt },
           ],
@@ -265,7 +392,16 @@ export const getServer = (): McpServer => {
     return queryTokens.every((t) => sceneTokens.includes(t));
   }
 
-  function filterScenes({ sceneNumber, characters, setting, location, time }: FindParams) {
+  function filterScenes({
+    sceneNumber,
+    characters,
+    setting,
+    location,
+    time,
+    sceneDuration,
+    shootingDate,
+    shootingLocation,
+  }: FindParams) {
     const chars = characters?.map((c) => normalizeName(c));
     return sceneStore.filter(
       (s) =>
@@ -273,7 +409,13 @@ export const getServer = (): McpServer => {
         (!setting || matchesSetting(s.setting, setting)) &&
         (!location || normalizeText(s.location).includes(normalizeText(location))) &&
         (!time || normalizeText(s.time).includes(normalizeText(time))) &&
-        (!chars || chars.every((c) => s.characters.some((sc) => normalizeName(sc) === c))),
+        (!chars || chars.every((c) => s.characters.some((sc) => normalizeName(sc) === c))) &&
+        (!sceneDuration || s.sceneDuration === sceneDuration) &&
+        (!shootingDate || s.shootingDates.includes(shootingDate)) &&
+        (!shootingLocation ||
+          s.shootingLocations.some((loc) =>
+            normalizeText(loc).includes(normalizeText(shootingLocation || "")),
+          )),
     );
   }
 
@@ -288,16 +430,34 @@ export const getServer = (): McpServer => {
       const regex = new RegExp(`\\b${char}\\b`, "gi");
       body = body.replace(regex, `**${char.toUpperCase()}**`);
     }
+    const meta: string[] = [];
+    if (scene.sceneDuration) meta.push(`Duration: ${scene.sceneDuration}s`);
+    if (scene.shootingDates.length) meta.push(`Dates: ${scene.shootingDates.join(", ")}`);
+    if (scene.shootingLocations.length)
+      meta.push(`Locations: ${scene.shootingLocations.join(", ")}`);
+    if (meta.length) body += (body ? "\n" : "") + meta.join(" | ");
     if (body) body += "\n";
     return `${heading}\n${body}`;
   }
 
-  function buildNoResultsMessage({ sceneNumber, characters, setting, location, time }: FindParams) {
+  function buildNoResultsMessage({
+    sceneNumber,
+    characters,
+    setting,
+    location,
+    time,
+    sceneDuration,
+    shootingDate,
+    shootingLocation,
+  }: FindParams) {
     const parts: string[] = [];
     if (characters?.length) parts.push(`with ${characters.join(" and ")}`);
     if (setting) parts.push(`in ${setting}`);
     if (time) parts.push(`at ${time}`);
     if (location) parts.push(`in ${location}`);
+    if (shootingLocation) parts.push(`shot at ${shootingLocation}`);
+    if (shootingDate) parts.push(`on ${shootingDate}`);
+    if (sceneDuration) parts.push(`lasting ${sceneDuration}s`);
     if (sceneNumber) parts.push(`number ${sceneNumber}`);
     return `There are no scenes ${parts.join(" ")}`.replace(/\s+/g, " ").trim();
   }

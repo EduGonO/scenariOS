@@ -7,12 +7,18 @@ export default function McpDebug() {
   const [findSetting, setFindSetting] = useState('');
   const [findLocation, setFindLocation] = useState('');
   const [findTime, setFindTime] = useState('');
+   const [findDuration, setFindDuration] = useState('');
+   const [findShootingDate, setFindShootingDate] = useState('');
+   const [findShootingLocation, setFindShootingLocation] = useState('');
   const [findResult, setFindResult] = useState('');
   const [printSceneNumber, setPrintSceneNumber] = useState('');
   const [printCharacter, setPrintCharacter] = useState('');
   const [printSetting, setPrintSetting] = useState('');
   const [printLocation, setPrintLocation] = useState('');
   const [printTime, setPrintTime] = useState('');
+   const [printDuration, setPrintDuration] = useState('');
+   const [printShootingDate, setPrintShootingDate] = useState('');
+   const [printShootingLocation, setPrintShootingLocation] = useState('');
   const [printResult, setPrintResult] = useState('');
   const [metaResult, setMetaResult] = useState('');
 
@@ -84,6 +90,9 @@ export default function McpDebug() {
     if (findSetting) args.setting = findSetting;
     if (findLocation) args.location = findLocation;
     if (findTime) args.time = findTime;
+    if (findDuration) args.sceneDuration = Number(findDuration);
+    if (findShootingDate) args.shootingDate = findShootingDate;
+    if (findShootingLocation) args.shootingLocation = findShootingLocation;
     await callMcp(
       {
         jsonrpc: '2.0',
@@ -106,6 +115,9 @@ export default function McpDebug() {
     if (printSetting) args.setting = printSetting;
     if (printLocation) args.location = printLocation;
     if (printTime) args.time = printTime;
+    if (printDuration) args.sceneDuration = Number(printDuration);
+    if (printShootingDate) args.shootingDate = printShootingDate;
+    if (printShootingLocation) args.shootingLocation = printShootingLocation;
     await callMcp(
       {
         jsonrpc: '2.0',
@@ -175,6 +187,24 @@ export default function McpDebug() {
             value={findTime}
             onChange={(e) => setFindTime(e.target.value)}
           />
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Duration (sec)"
+            value={findDuration}
+            onChange={(e) => setFindDuration(e.target.value)}
+          />
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Shooting date"
+            value={findShootingDate}
+            onChange={(e) => setFindShootingDate(e.target.value)}
+          />
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Shooting location"
+            value={findShootingLocation}
+            onChange={(e) => setFindShootingLocation(e.target.value)}
+          />
           <button
             type="button"
             className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
@@ -218,6 +248,24 @@ export default function McpDebug() {
             placeholder="Time"
             value={printTime}
             onChange={(e) => setPrintTime(e.target.value)}
+          />
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Duration (sec)"
+            value={printDuration}
+            onChange={(e) => setPrintDuration(e.target.value)}
+          />
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Shooting date"
+            value={printShootingDate}
+            onChange={(e) => setPrintShootingDate(e.target.value)}
+          />
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Shooting location"
+            value={printShootingLocation}
+            onChange={(e) => setPrintShootingLocation(e.target.value)}
           />
           <button
             type="button"

@@ -4,6 +4,7 @@ import { Scene, ScenePart, CharacterStats, cleanName } from "../utils/parseScrip
 interface Props {
   scenes: Scene[];
   characters: CharacterStats[];
+  onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
 }
 
 const COLORS = [
@@ -18,7 +19,7 @@ const COLORS = [
   "bg-orange-200",
 ];
 
-export default function ScriptDisplay({ scenes, characters }: Props) {
+export default function ScriptDisplay({ scenes, characters, onAssignActor }: Props) {
   const [activeScene, setActiveScene] = useState<number | null>(null);
   const [filterChar, setFilterChar] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
@@ -228,6 +229,17 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
             );
           })}
         </div>
+        <div className="w-72 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm hidden lg:block">
+          {activeScene !== null ? (
+            <SceneInfoPanel
+              scene={filteredScenes[activeScene]}
+              characters={characters}
+              onAssignActor={onAssignActor}
+            />
+          ) : (
+            <div className="text-sm text-gray-500">Select a scene</div>
+          )}
+        </div>
       </div>
       <div className="mt-4 flex items-start gap-6 overflow-x-auto pb-3 scroll-px-6 min-h-[5rem] [&>*:first-child]:pl-6 [&>*:last-child]:pr-6">
         {filterChar && (
@@ -336,6 +348,106 @@ export default function ScriptDisplay({ scenes, characters }: Props) {
         ) : null}
         {!presentChars.length && !otherChars.length && (
           <div className="flex items-center text-sm text-gray-500">No characters</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SceneInfoPanel({
+  scene,
+  characters,
+  onAssignActor,
+}: {
+  scene: Scene;
+  characters: CharacterStats[];
+  onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
+}) {
+  const formatDuration = (secs?: number) => {
+    if (!secs && secs !== 0) return "–";
+    const m = Math.floor(secs / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = Math.floor(secs % 60)
+      .toString()
+      .padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  const cast: CharacterStats[] = scene.characters.map(
+    (c) =>
+      characters.find((ch) => ch.name === c) || {
+        name: c,
+        sceneCount: 0,
+        dialogueCount: 0,
+        scenes: [],
+      },
+  );
+
+  return (
+    <div className="space-y-4 text-sm text-gray-700">
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500">Duration</h3>
+        <p className="mt-1 text-base font-medium text-gray-900">
+          {formatDuration(scene.sceneDuration)}
+        </p>
+      </div>
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500">Shooting Dates</h3>
+        {scene.shootingDates.length ? (
+          <ul className="mt-1 space-y-1">
+            {scene.shootingDates.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1">Not scheduled</p>
+        )}
+      </div>
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500">Shooting Locations</h3>
+        {scene.shootingLocations.length ? (
+          <ul className="mt-1 space-y-1">
+            {scene.shootingLocations.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1">Unknown</p>
+        )}
+      </div>
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500">Cast</h3>
+        {cast.length ? (
+          <ul className="mt-1 space-y-2">
+            {cast.map((c) => (
+              <li key={c.name}>
+                <div className="font-medium text-gray-900">{c.name}</div>
+                {c.actorName || c.actorEmail ? (
+                  <div className="text-xs text-gray-600">
+                    {c.actorName && <span>{c.actorName}</span>}
+                    {c.actorName && c.actorEmail && <span> · </span>}
+                    {c.actorEmail && <span>{c.actorEmail}</span>}
+                  </div>
+                ) : onAssignActor ? (
+                  <button
+                    onClick={() => {
+                      const actorName = prompt(`Actor name for ${c.name}`) || "";
+                      const actorEmail = prompt(`Actor email for ${c.name}`) || "";
+                      onAssignActor(c.name, actorName, actorEmail);
+                    }}
+                    className="mt-1 text-xs text-blue-600 underline"
+                  >
+                    Assign actor
+                  </button>
+                ) : (
+                  <div className="text-xs text-gray-400">Unassigned</div>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1">No characters</p>
         )}
       </div>
     </div>
