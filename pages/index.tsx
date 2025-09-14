@@ -90,7 +90,7 @@ export default function Home() {
       const data = await res.json();
       const text = data.text ?? "";
       const { scenes: parsedScenes, characters: parsedChars } = parseScript(text);
-      const [scriptTitle, scriptAuthor] = extractMetadata(text);
+      const [scriptTitle, scriptAuthor] = await extractMetadata(text);
       setScenes(parsedScenes);
       setCharacters(parsedChars);
       setTitle(scriptTitle);
@@ -103,8 +103,7 @@ export default function Home() {
       }
       await registerScenes(parsedScenes);
       const storedScenes = await fetchAllScenes();
-      const merged: Scene[] = [];
-      for (const sc of parsedScenes) {
+      const merged: Scene[] = parsedScenes.map((sc) => {
         const meta = storedScenes.find((s) => s.id === String(sc.sceneNumber));
         const prompt = [
           sc.heading,
@@ -112,37 +111,106 @@ export default function Home() {
             p.type === "dialogue" ? `${p.character}: ${p.text}` : p.text,
           ),
         ].join("\n");
-        let duration = Number(meta?.sceneDuration);
-        if (!Number.isFinite(duration)) {
-          duration = await estimateSceneDuration(prompt);
-        }
-        merged.push({
+        const words = prompt.trim().split(/\s+/).filter(Boolean).length;
+        const fallback = Math.round(words / 3);
+        const duration = Number.isFinite(meta?.sceneDuration)
+          ? Number(meta?.sceneDuration)
+          : fallback;
+        return {
           ...sc,
           sceneDuration: duration,
           shootingDates: meta?.shootingDates ?? [],
           shootingLocations: meta?.shootingLocations ?? [],
-        });
-      }
+        };
+      });
       setScenes(merged);
       if (typeof window !== "undefined") {
         localStorage.setItem("scenes", JSON.stringify(merged));
       }
       setLoading(false);
+      const need = merged
+        .map((sc, i) => ({ sc, i }))
+        .filter(({ sc, i }) => {
+          const meta = storedScenes.find((s) => s.id === String(sc.sceneNumber));
+          return !Number.isFinite(meta?.sceneDuration);
+        });
+      if (need.length) {
+        Promise.all(
+          need.map(async ({ sc, i }) => {
+            const prompt = [
+              sc.heading,
+              ...sc.parts.map((p) =>
+                p.type === "dialogue" ? `${p.character}: ${p.text}` : p.text,
+              ),
+            ].join("\n");
+            const duration = await estimateSceneDuration(prompt);
+            setScenes((prev) => {
+              const next = [...prev];
+              next[i] = { ...next[i], sceneDuration: duration };
+              if (typeof window !== "undefined") {
+                localStorage.setItem("scenes", JSON.stringify(next));
+              }
+              return next;
+            });
+          }),
+        );
+      }
     };
     reader.readAsDataURL(file);
   }
 
-  function extractMetadata(text: string): [string, string] {
+  async function extractMetadata(text: string): Promise<[string, string]> {
     const pages = text.split("\f");
     const firstPage = pages[0] || "";
-    const lines = firstPage
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    const scriptTitle = lines[0] || "Untitled";
-    const authorLine = lines.find((l) => /^by\s+/i.test(l));
-    const scriptAuthor = authorLine ? authorLine.replace(/^by\s+/i, "") : "Unknown";
-    return [scriptTitle, scriptAuthor];
+    const heuristic = () => {
+      const lines = firstPage
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const scriptTitle = lines[0] || "Untitled";
+      const authorLine = lines.find((l) => /^(written\s+by|by)\s+/i.test(l));
+      const scriptAuthor = authorLine
+        ? authorLine.replace(/^(written\s+by|by)\s+/i, "")
+        : "Unknown";
+      return [scriptTitle, scriptAuthor] as [string, string];
+    };
+    const key = process.env.NEXT_PUBLIC_MISTRAL_API_KEY;
+    if (!key) return heuristic();
+    try {
+      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: "mistral-small-latest",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Extract the film script title and author from the following text. Respond with JSON {\"title\":\"...\",\"author\":\"...\"}",
+            },
+            { role: "user", content: firstPage },
+          ],
+        }),
+      });
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (content) {
+        try {
+          const parsed = JSON.parse(content);
+          const t = parsed.title?.trim();
+          const a = parsed.author?.trim();
+          if (t || a) return [t || "Untitled", a || "Unknown"];
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return heuristic();
   }
 
   async function registerScenes(parsed: Scene[]) {
