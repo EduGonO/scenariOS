@@ -36,6 +36,38 @@ export default function Home() {
     }
   }
 
+  async function estimateSceneDuration(text: string): Promise<number> {
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
+    const fallback = Math.round(words / 3);
+    const key = process.env.NEXT_PUBLIC_MISTRAL_API_KEY;
+    if (!key) return fallback;
+    try {
+      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: "mistral-small-latest",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Estimate the approximate screen time in seconds for the following film scene. Reply with ONLY a number.",
+            },
+            { role: "user", content: text },
+          ],
+        }),
+      });
+      const data = await res.json();
+      const out = parseInt(data?.choices?.[0]?.message?.content?.trim(), 10);
+      return Number.isFinite(out) ? out : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
   async function processFile(file: File) {
     setLoading(true);
     const reader = new FileReader();
@@ -62,29 +94,26 @@ export default function Home() {
       }
       await registerScenes(parsedScenes);
       const storedScenes = await fetchAllScenes();
-      const merged = parsedScenes.map((sc) => {
+      const merged: Scene[] = [];
+      for (const sc of parsedScenes) {
         const meta = storedScenes.find((s) => s.id === String(sc.sceneNumber));
-        const wordCount = [
+        const prompt = [
           sc.heading,
           ...sc.parts.map((p) =>
-            p.type === "dialogue" ? `${p.character} ${p.text}` : p.text,
+            p.type === "dialogue" ? `${p.character}: ${p.text}` : p.text,
           ),
-        ]
-          .join(" ")
-          .trim()
-          .split(/\s+/)
-          .filter(Boolean).length;
-        const estimated = Math.round(wordCount / 3);
-        const metaDuration = Number(meta?.sceneDuration);
-        return {
+        ].join("\n");
+        let duration = Number(meta?.sceneDuration);
+        if (!Number.isFinite(duration)) {
+          duration = await estimateSceneDuration(prompt);
+        }
+        merged.push({
           ...sc,
-          sceneDuration: Number.isFinite(metaDuration)
-            ? metaDuration
-            : estimated,
+          sceneDuration: duration,
           shootingDates: meta?.shootingDates ?? [],
           shootingLocations: meta?.shootingLocations ?? [],
-        };
-      });
+        });
+      }
       setScenes(merged);
       if (typeof window !== "undefined") {
         localStorage.setItem("scenes", JSON.stringify(merged));
@@ -151,7 +180,7 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col bg-gradient-to-br from-gray-50 to-gray-200">
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden p-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col p-6">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-light text-gray-600">scenariOS</h1>
           <div className="flex gap-2">

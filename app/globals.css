@@ -5,20 +5,11 @@
 html,
 body,
 #__next {
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
+  min-height: 100vh;
 }
 
 body {
-  overflow: hidden;
-}
-
-/* Hide scrollbars */
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-*::-webkit-scrollbar {
-  display: none;
+  overflow-y: auto;
 }
 
