@@ -3,6 +3,13 @@ import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { parseScript } from "../utils/parseScript";
 import type { Scene as ParsedScene, ScenePart } from "../utils/parseScript";
+import {
+  createGoogleDoc,
+  createGoogleSheet,
+  createPdfCallSheet,
+} from "../utils/google";
+import PDFDocument from "pdfkit";
+import { marked } from "marked";
 
 const SceneInfo = z.object({
   setting: z.string(),
@@ -36,6 +43,26 @@ function normalizeText(str: string): string {
 
 function normalizeName(str: string): string {
   return stripDiacritics(str).toUpperCase();
+}
+
+function findCharacter(name: string): Character | undefined {
+  const norm = normalizeName(name);
+  return characterStore.find((c) => normalizeName(c.name) === norm);
+}
+
+function collectActorEmails(scenes: Scene[]): string[] {
+  const emails = new Set<string>();
+  for (const scene of scenes) {
+    for (const ch of scene.characters) {
+      const entry = findCharacter(ch);
+      if (entry?.actorEmail) emails.add(entry.actorEmail);
+    }
+  }
+  return Array.from(emails);
+}
+
+function formatCallSheet(scene: Scene) {
+  return `${scene.id}. ${scene.setting} ${scene.location} - ${scene.time}\nCast: ${scene.characters.join(", ")}`;
 }
 
 async function translateToEnglish(text?: string): Promise<string | undefined> {
@@ -279,6 +306,27 @@ export const getServer = (): McpServer => {
     },
   );
 
+  server.tool(
+    "assign_actor",
+    "Assign actor details to a character",
+    {
+      name: z.string(),
+      actorName: z.string().optional(),
+      actorEmail: z.string().optional(),
+    },
+    async ({ name, actorName, actorEmail }): Promise<CallToolResult> => {
+      const norm = normalizeName(name);
+      let entry = characterStore.find((c) => normalizeName(c.name) === norm);
+      if (!entry) {
+        entry = { name };
+        characterStore.push(entry);
+      }
+      if (actorName !== undefined) entry.actorName = actorName;
+      if (actorEmail !== undefined) entry.actorEmail = actorEmail;
+      return { content: [{ type: "text", text: JSON.stringify(entry) }] };
+    },
+  );
+
   const findShape = {
     sceneNumber: z.union([z.string(), z.number()]).optional(),
     characters: z.union([z.string(), z.array(z.string())]).optional(),
@@ -483,19 +531,83 @@ export const getServer = (): McpServer => {
     if (/^\s*(INT|EXT)\./i.test(lines[0])) {
       lines = lines.slice(1);
     }
-    let body = lines.join("\n").trim();
-    for (const char of scene.characters) {
-      const regex = new RegExp(`\\b${char}\\b`, "gi");
-      body = body.replace(regex, `**${char.toUpperCase()}**`);
+    const out: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const next = lines[i + 1]?.trim();
+      if (/^[A-Z0-9 '()\-.]+$/.test(line) && next && next !== "") {
+        let dialogue = next;
+        i++;
+        while (i + 1 < lines.length && lines[i + 1].trim() && !/^[A-Z0-9 '()\-.]+$/.test(lines[i + 1].trim())) {
+          dialogue += " " + lines[i + 1].trim();
+          i++;
+        }
+        out.push(`**${line.toUpperCase()}** ${dialogue}`);
+        out.push("");
+      } else {
+        let replaced = line;
+        for (const char of scene.characters) {
+          const regex = new RegExp(`\\b${char}\\b`, "gi");
+          replaced = replaced.replace(regex, `**${char.toUpperCase()}**`);
+        }
+        out.push(replaced);
+      }
     }
+    let body = out.join("\n").trim();
     const meta: string[] = [];
-    if (scene.sceneDuration) meta.push(`Duration: ${scene.sceneDuration}s`);
-    if (scene.shootingDates.length) meta.push(`Dates: ${scene.shootingDates.join(", ")}`);
+    if (scene.sceneDuration) meta.push(`**Duration:** ${scene.sceneDuration}s`);
+    if (scene.shootingDates.length) meta.push(`**Dates:** ${scene.shootingDates.join(", ")}`);
     if (scene.shootingLocations.length)
-      meta.push(`Locations: ${scene.shootingLocations.join(", ")}`);
-    if (meta.length) body += (body ? "\n" : "") + meta.join(" | ");
-    if (body) body += "\n";
-    return `${heading}\n${body}`;
+      meta.push(`**Locations:** ${scene.shootingLocations.join(", ")}`);
+    if (meta.length) body += (body ? "\n\n" : "") + meta.join("  •  ");
+    return `${heading}\n${body}\n`;
+  }
+
+  async function markdownToPdf(md: string): Promise<Buffer> {
+    const doc = new PDFDocument({ margin: 40 });
+    const chunks: Buffer[] = [];
+    return await new Promise((resolve) => {
+      doc.on("data", (c: Buffer) => chunks.push(c));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      const tokens = marked.lexer(md);
+      const renderInline = (toks: any[]) => {
+        toks.forEach((tok) => {
+          if (tok.type === "strong") {
+            doc.font("Helvetica-Bold").text(tok.text, { continued: true });
+            doc.font("Helvetica");
+          } else if (tok.type === "codespan") {
+            doc.font("Courier").text(tok.text, { continued: true });
+            doc.font("Helvetica");
+          } else if (tok.type === "text") {
+            doc.text(tok.text, { continued: true });
+          } else if (tok.type === "space") {
+            doc.text(" ", { continued: true });
+          } else if (tok.type === "br") {
+            doc.text("");
+          }
+        });
+        doc.text("");
+      };
+      const renderTokens = (toks: any[]) => {
+        toks.forEach((token) => {
+          if (token.type === "paragraph") {
+            renderInline(token.tokens || []);
+            doc.moveDown();
+          } else if (token.type === "text") {
+            renderInline(token.tokens || [token]);
+            doc.moveDown();
+          } else if (token.type === "space") {
+            doc.moveDown();
+          } else {
+            doc.text(token.raw);
+            doc.moveDown();
+          }
+        });
+      };
+      renderTokens(tokens);
+      doc.end();
+    });
   }
 
   function buildNoResultsMessage({
@@ -569,6 +681,26 @@ export const getServer = (): McpServer => {
   );
 
   server.tool(
+    "print_pdf",
+    "Print scenes as a downloadable PDF",
+    findShape,
+    async (params): Promise<CallToolResult> => {
+      const raw = findSchema.parse(params);
+      let parsed = await normalizeParams(raw);
+      let results = filterScenes(parsed);
+      if (!results.length) {
+        parsed = await normalizeParams(raw, true);
+        results = filterScenes(parsed);
+      }
+      if (!results.length)
+        return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+      const formatted = results.map(formatScene).join("\n\n");
+      const buf = await markdownToPdf(formatted);
+      return { content: [{ type: "text", text: buf.toString("base64") }] };
+    },
+  );
+
+  server.tool(
     "query_scenes",
     "Find and print scenes using a natural language prompt",
     { prompt: z.string().describe("Natural language description of desired scenes") },
@@ -611,29 +743,6 @@ export const getServer = (): McpServer => {
           (!hasActor || Boolean(c.actorName)),
       );
       return { content: [{ type: "text", text: JSON.stringify(list) }] };
-    },
-  );
-
-  server.tool(
-    "assign_actor",
-    "Assign actor and contact to a character",
-    {
-      character: z.string(),
-      actorName: z.string(),
-      actorEmail: z.string().optional(),
-    },
-    async ({ character, actorName, actorEmail }): Promise<CallToolResult> => {
-      const norm = normalizeName(character);
-      let entry = characterStore.find((c) => normalizeName(c.name) === norm);
-      if (!entry) {
-        entry = { name: character };
-        characterStore.push(entry);
-      } else {
-        entry.name = entry.name || character;
-      }
-      entry.actorName = actorName;
-      entry.actorEmail = actorEmail;
-      return { content: [{ type: "text", text: JSON.stringify(entry) }] };
     },
   );
 
@@ -744,6 +853,81 @@ export const getServer = (): McpServer => {
       } catch {
         return { content: [{ type: "text", text: JSON.stringify({ backups: [] }) }] };
       }
+    },
+  );
+
+  server.tool(
+    "create_call_sheet_doc",
+    "Create Google Docs call sheet for scenes",
+    { sceneIds: z.array(z.string()) },
+    async ({ sceneIds }): Promise<CallToolResult> => {
+      const scenes = sceneStore.filter((s) => sceneIds.includes(s.id));
+      const emails = collectActorEmails(scenes);
+      const content = scenes.map((s) => formatCallSheet(s)).join("\n\n");
+      const url = await createGoogleDoc("Call Sheet", content, emails);
+      return { content: [{ type: "text", text: url }] };
+    },
+  );
+
+  server.tool(
+    "send_actor_scenes_doc",
+    "Create Google Doc of an actor's scenes and share",
+    { character: z.string() },
+    async ({ character }): Promise<CallToolResult> => {
+      const norm = normalizeName(character);
+      const scenes = sceneStore.filter((s) =>
+        s.characters.some((c) => normalizeName(c) === norm),
+      );
+      const actor = findCharacter(character);
+      if (!actor?.actorEmail) {
+        throw new Error("Actor email not found");
+      }
+      const content = scenes.map((s) => formatScene(s)).join("\n\n");
+      const url = await createGoogleDoc(`${character} Scenes`, content, [
+        actor.actorEmail,
+      ]);
+      return { content: [{ type: "text", text: url }] };
+    },
+  );
+
+  server.tool(
+    "create_call_sheet_sheet",
+    "Create Google Sheets call sheet for scenes",
+    { sceneIds: z.array(z.string()) },
+    async ({ sceneIds }): Promise<CallToolResult> => {
+      const scenes = sceneStore.filter((s) => sceneIds.includes(s.id));
+      const emails = collectActorEmails(scenes);
+      const rows: string[][] = [[
+        "Scene",
+        "Setting",
+        "Location",
+        "Time",
+        "Cast",
+      ]];
+      for (const sc of scenes) {
+        rows.push([
+          sc.id,
+          sc.setting,
+          sc.location,
+          sc.time,
+          sc.characters.join(", "),
+        ]);
+      }
+      const url = await createGoogleSheet("Call Sheet", rows, emails);
+      return { content: [{ type: "text", text: url }] };
+    },
+  );
+
+  server.tool(
+    "create_call_sheet_pdf",
+    "Create PDF call sheet for scenes",
+    { sceneIds: z.array(z.string()) },
+    async ({ sceneIds }): Promise<CallToolResult> => {
+      const scenes = sceneStore.filter((s) => sceneIds.includes(s.id));
+      const emails = collectActorEmails(scenes);
+      const text = scenes.map((s) => formatCallSheet(s)).join("\n\n");
+      const url = await createPdfCallSheet("Call Sheet", text, emails);
+      return { content: [{ type: "text", text: url }] };
     },
   );
 

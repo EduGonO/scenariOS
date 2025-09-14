@@ -25,6 +25,22 @@ const COLORS = [
   "bg-orange-200",
 ];
 
+function sendScenesToActor(character: string) {
+  fetch("/mcp", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: Date.now(),
+      method: "tools/call",
+      params: { name: "send_actor_scenes_doc", arguments: { character } },
+    }),
+  });
+}
+
 export default function ScriptDisplay({
   scenes,
   characters,
@@ -96,6 +112,54 @@ export default function ScriptDisplay({
     listRef.current?.scrollTo({ top: 0 });
   }, [filterChar]);
 
+  async function exportScenes(format: "md" | "pdf") {
+    const args: Record<string, any> = {};
+    if (filterChar) args.characters = [filterChar];
+    const tool = format === "pdf" ? "print_pdf" : "print";
+    try {
+      const res = await fetch("/mcp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: Date.now(),
+          method: "tools/call",
+          params: { name: tool, arguments: args },
+        }),
+      });
+      const data = await res.json();
+      const text = data.result?.content?.[0]?.text || "";
+      if (!text) return;
+      if (format === "md") {
+        const blob = new Blob([text], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "scenes.md";
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        try {
+          const binary = Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
+          const blob = new Blob([binary], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "scenes.pdf";
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error("Failed to decode PDF", e);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to export scenes", err);
+    }
+  }
+
   function normalize(tok: string) {
     return cleanName(tok.toUpperCase()).replace(/'S?$/, "");
   }
@@ -139,7 +203,7 @@ export default function ScriptDisplay({
       className="flex h-full min-h-0 flex-col overflow-y-hidden"
       style={{ fontFamily: "Courier, monospace" }}
     >
-      <div className="mb-2 flex justify-center">
+      <div className="mb-2 flex items-center justify-center gap-2">
         <div className="relative">
           <button
             onClick={() => filterChar && setShowReset((v) => !v)}
@@ -167,6 +231,18 @@ export default function ScriptDisplay({
             </button>
           )}
         </div>
+        <button
+          onClick={() => exportScenes("md")}
+          className="rounded bg-white/70 px-3 py-1.5 text-sm font-medium text-gray-800 shadow-sm backdrop-blur transition hover:bg-white/90"
+        >
+          Export MD
+        </button>
+        <button
+          onClick={() => exportScenes("pdf")}
+          className="rounded bg-white/70 px-3 py-1.5 text-sm font-medium text-gray-800 shadow-sm backdrop-blur transition hover:bg-white/90"
+        >
+          Export PDF
+        </button>
       </div>
       <div className="flex flex-1 min-h-0 gap-6 overflow-visible">
         <div className="h-full min-h-0 w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg" ref={listRef}>
@@ -691,6 +767,14 @@ function SceneInfoPanel({
                     {c.actorName && <span>{c.actorName}</span>}
                     {c.actorName && c.actorEmail && <span> · </span>}
                     {c.actorEmail && <span>{c.actorEmail}</span>}
+                    {c.actorEmail && (
+                      <button
+                        onClick={() => sendScenesToActor(c.name)}
+                        className="ml-2 underline text-blue-600"
+                      >
+                        Send scenes
+                      </button>
+                    )}
                   </div>
                 ) : onAssignActor ? (
                   <button

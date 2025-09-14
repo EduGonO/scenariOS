@@ -24,6 +24,11 @@ scenariOS is a Mistral MCP hackathon entry that turns raw film scripts into a sc
 | `query_scenes` | Natural language scene search. |
 | `characters` | List characters and assigned actors. |
 | `assign_actor` | Attach actor name/email to a character. |
+| `send_actor_scenes_doc` | Create and email an actor's scenes in Google Docs. |
+| `create_call_sheet_doc` | Generate a Google Docs call sheet for scenes. |
+| `create_call_sheet_sheet` | Generate a Google Sheets call sheet for scenes. |
+| `create_call_sheet_pdf` | Generate a PDF call sheet for scenes. |
+| `print_pdf` | Render matching scenes as a downloadable PDF. |
 | `update_scene` | Add or remove shooting dates or locations. |
 | `calendar_suggest` | Suggest viable shooting dates for a scene. |
 | `map_search` | Find a location and 3–4 nearby backups. |
