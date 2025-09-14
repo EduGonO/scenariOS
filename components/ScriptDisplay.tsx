@@ -40,6 +40,7 @@ const COLORS = [
   const listRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
   const sceneRefs = useRef<HTMLDivElement[]>([]);
+  const charBarRef = useRef<HTMLDivElement>(null);
 
   const colorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -80,12 +81,8 @@ const COLORS = [
   }, [filteredScenes]);
 
   useEffect(() => {
-    const container = listRef.current;
-    const el = container?.children[activeScene] as HTMLElement | undefined;
-    if (container && el) {
-      const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
-      container.scrollTo({ top, behavior: "smooth" });
-    }
+    const el = listRef.current?.children[activeScene] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [activeScene, filteredScenes.length]);
 
   useEffect(() => {
@@ -95,6 +92,15 @@ const COLORS = [
   useEffect(() => {
     listRef.current?.scrollTo({ top: 0 });
   }, [filterChar]);
+
+  useEffect(() => {
+    const el = charBarRef.current;
+    if (!el) return;
+    const left = el.scrollLeft;
+    requestAnimationFrame(() => {
+      if (charBarRef.current) charBarRef.current.scrollLeft = left;
+    });
+  }, [presentChars.length, otherChars.length, filterChar]);
 
   async function exportScenes(format: "md" | "pdf") {
     const args: Record<string, any> = {};
@@ -228,7 +234,7 @@ const COLORS = [
           Export PDF
         </button>
       </div>
-      <div className="flex flex-1 min-h-0 gap-6 overflow-visible">
+      <div className="flex flex-1 min-h-0 gap-6 overflow-hidden">
         <div className="h-full min-h-0 w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg" ref={listRef}>
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
@@ -334,7 +340,11 @@ const COLORS = [
           )}
         </div>
       </div>
-      <div className="mt-1 flex flex-none items-start gap-6 overflow-x-auto pb-1 scroll-px-4 min-h-[5rem] [&>*:first-child]:pl-4 [&>*:last-child]:pr-4">
+      <div
+        ref={charBarRef}
+        className="mt-1 flex flex-none items-start gap-6 overflow-x-auto pb-1 min-h-[4rem] [&>*:first-child]:pl-4 [&>*:last-child]:pr-4 [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
         {filterChar && (
           <button
             onClick={() => {
@@ -371,7 +381,7 @@ const COLORS = [
                         requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                       }
                     }}
-                    className={`flex-shrink-0 w-40 h-32 rounded-lg border bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50 ${
+                    className={`flex-shrink-0 w-32 h-20 rounded-lg border bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50 ${
                       filterChar === char.name ? "bg-gray-100 font-bold" : ""
                     }`}
                   >
@@ -421,7 +431,7 @@ const COLORS = [
                         requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                       }
                     }}
-                    className={`flex-shrink-0 w-40 h-32 rounded-lg border bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50 ${
+                    className={`flex-shrink-0 w-32 h-20 rounded-lg border bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50 ${
                       filterChar === char.name ? "bg-gray-100 font-bold" : ""
                     }`}
                   >
