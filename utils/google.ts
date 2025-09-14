@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import PDFDocument from "pdfkit";
+import { decodeHtmlEntities } from "./text";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/documents",
@@ -77,7 +78,8 @@ export async function createPdfCallSheet(title: string, text: string, emails: st
   const doc = new PDFDocument();
   const chunks: Buffer[] = [];
   doc.on("data", (b) => chunks.push(b));
-  doc.fontSize(12).text(text);
+  const clean = decodeHtmlEntities(text);
+  doc.font("Courier").fontSize(12).text(clean, { lineGap: 4 });
   doc.end();
   const buffer: Buffer = await new Promise((resolve) => {
     doc.on("end", () => resolve(Buffer.concat(chunks)));

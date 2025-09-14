@@ -3,13 +3,9 @@ import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { parseScript } from "../utils/parseScript";
 import type { Scene as ParsedScene, ScenePart } from "../utils/parseScript";
-import {
-  createGoogleDoc,
-  createGoogleSheet,
-  createPdfCallSheet,
-} from "../utils/google";
+import { createPdfCallSheet } from "../utils/google";
 import PDFDocument from "pdfkit";
-import { marked } from "marked";
+import { decodeHtmlEntities } from "../utils/text";
 
 const SceneInfo = z.object({
   setting: z.string(),
@@ -570,42 +566,10 @@ export const getServer = (): McpServer => {
     return await new Promise((resolve) => {
       doc.on("data", (c: Buffer) => chunks.push(c));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
-      const tokens = marked.lexer(md);
-      const renderInline = (toks: any[]) => {
-        toks.forEach((tok) => {
-          if (tok.type === "strong") {
-            doc.font("Helvetica-Bold").text(tok.text, { continued: true });
-            doc.font("Helvetica");
-          } else if (tok.type === "codespan") {
-            doc.font("Courier").text(tok.text, { continued: true });
-            doc.font("Helvetica");
-          } else if (tok.type === "text") {
-            doc.text(tok.text, { continued: true });
-          } else if (tok.type === "space") {
-            doc.text(" ", { continued: true });
-          } else if (tok.type === "br") {
-            doc.text("");
-          }
-        });
-        doc.text("");
-      };
-      const renderTokens = (toks: any[]) => {
-        toks.forEach((token) => {
-          if (token.type === "paragraph") {
-            renderInline(token.tokens || []);
-            doc.moveDown();
-          } else if (token.type === "text") {
-            renderInline(token.tokens || [token]);
-            doc.moveDown();
-          } else if (token.type === "space") {
-            doc.moveDown();
-          } else {
-            doc.text(token.raw);
-            doc.moveDown();
-          }
-        });
-      };
-      renderTokens(tokens);
+      const clean = decodeHtmlEntities(
+        md.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]*)`/g, "$1"),
+      );
+      doc.font("Courier").fontSize(12).text(clean, { lineGap: 4 });
       doc.end();
     });
   }
@@ -700,18 +664,27 @@ export const getServer = (): McpServer => {
     },
   );
 
+  async function handlePrintQuery(prompt: string): Promise<CallToolResult> {
+    const parsed = await promptToParams(prompt);
+    const results = filterScenes(parsed);
+    if (!results.length)
+      return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+    const formatted = results.map(formatScene).join("\n\n");
+    return { content: [{ type: "text", text: formatted }] };
+  }
+
+  server.tool(
+    "print_query",
+    "Print scenes using a natural language prompt",
+    { prompt: z.string().describe("Natural language description of desired scenes") },
+    async ({ prompt }): Promise<CallToolResult> => handlePrintQuery(prompt),
+  );
+
   server.tool(
     "query_scenes",
-    "Find and print scenes using a natural language prompt",
+    "Alias of print_query",
     { prompt: z.string().describe("Natural language description of desired scenes") },
-    async ({ prompt }): Promise<CallToolResult> => {
-      const parsed = await promptToParams(prompt);
-      const results = filterScenes(parsed);
-      if (!results.length)
-        return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
-      const formatted = results.map(formatScene).join("\n\n");
-      return { content: [{ type: "text", text: formatted }] };
-    },
+    async ({ prompt }): Promise<CallToolResult> => handlePrintQuery(prompt),
   );
 
   server.tool(
@@ -727,6 +700,19 @@ export const getServer = (): McpServer => {
         results = filterScenes(parsed);
       }
       if (!results.length) return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+      return { content: [{ type: "text", text: results.length.toString() }] };
+    },
+  );
+
+  server.tool(
+    "count_query",
+    "Count scenes using a natural language prompt",
+    { prompt: z.string().describe("Natural language description of desired scenes") },
+    async ({ prompt }): Promise<CallToolResult> => {
+      const parsed = await promptToParams(prompt);
+      const results = filterScenes(parsed);
+      if (!results.length)
+        return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
       return { content: [{ type: "text", text: results.length.toString() }] };
     },
   );
@@ -856,67 +842,6 @@ export const getServer = (): McpServer => {
     },
   );
 
-  server.tool(
-    "create_call_sheet_doc",
-    "Create Google Docs call sheet for scenes",
-    { sceneIds: z.array(z.string()) },
-    async ({ sceneIds }): Promise<CallToolResult> => {
-      const scenes = sceneStore.filter((s) => sceneIds.includes(s.id));
-      const emails = collectActorEmails(scenes);
-      const content = scenes.map((s) => formatCallSheet(s)).join("\n\n");
-      const url = await createGoogleDoc("Call Sheet", content, emails);
-      return { content: [{ type: "text", text: url }] };
-    },
-  );
-
-  server.tool(
-    "send_actor_scenes_doc",
-    "Create Google Doc of an actor's scenes and share",
-    { character: z.string() },
-    async ({ character }): Promise<CallToolResult> => {
-      const norm = normalizeName(character);
-      const scenes = sceneStore.filter((s) =>
-        s.characters.some((c) => normalizeName(c) === norm),
-      );
-      const actor = findCharacter(character);
-      if (!actor?.actorEmail) {
-        throw new Error("Actor email not found");
-      }
-      const content = scenes.map((s) => formatScene(s)).join("\n\n");
-      const url = await createGoogleDoc(`${character} Scenes`, content, [
-        actor.actorEmail,
-      ]);
-      return { content: [{ type: "text", text: url }] };
-    },
-  );
-
-  server.tool(
-    "create_call_sheet_sheet",
-    "Create Google Sheets call sheet for scenes",
-    { sceneIds: z.array(z.string()) },
-    async ({ sceneIds }): Promise<CallToolResult> => {
-      const scenes = sceneStore.filter((s) => sceneIds.includes(s.id));
-      const emails = collectActorEmails(scenes);
-      const rows: string[][] = [[
-        "Scene",
-        "Setting",
-        "Location",
-        "Time",
-        "Cast",
-      ]];
-      for (const sc of scenes) {
-        rows.push([
-          sc.id,
-          sc.setting,
-          sc.location,
-          sc.time,
-          sc.characters.join(", "),
-        ]);
-      }
-      const url = await createGoogleSheet("Call Sheet", rows, emails);
-      return { content: [{ type: "text", text: url }] };
-    },
-  );
 
   server.tool(
     "create_call_sheet_pdf",
