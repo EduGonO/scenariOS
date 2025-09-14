@@ -46,21 +46,24 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
     const container = viewerRef.current;
     if (!container) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) {
-          const idx = Number((visible[0].target as HTMLElement).dataset.index);
-          setActiveScene(idx);
+    const handleScroll = () => {
+      const top = container.scrollTop;
+      const view = container.clientHeight;
+      let idx = 0;
+      for (let i = 0; i < sceneRefs.current.length; i++) {
+        const node = sceneRefs.current[i];
+        if (node && node.offsetTop <= top + view / 2) {
+          idx = i;
+        } else {
+          break;
         }
-      },
-      { root: container, threshold: 0.1 },
-    );
+      }
+      setActiveScene(idx);
+    };
 
-    sceneRefs.current.forEach((el) => el && observer.observe(el));
-    return () => observer.disconnect();
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => container.removeEventListener("scroll", handleScroll);
   }, [filteredScenes]);
 
   useEffect(() => {

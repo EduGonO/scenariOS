@@ -179,8 +179,8 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden p-6">
+    <main className="flex h-full flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 min-h-0 flex-col overflow-hidden p-6">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-light text-gray-600">scenariOS</h1>
           <div className="flex gap-2">
