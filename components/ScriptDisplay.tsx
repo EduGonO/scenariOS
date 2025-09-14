@@ -20,7 +20,7 @@ const COLORS = [
 ];
 
 export default function ScriptDisplay({ scenes, characters, onAssignActor }: Props) {
-  const [activeScene, setActiveScene] = useState<number | null>(null);
+  const [activeScene, setActiveScene] = useState(0);
   const [filterChar, setFilterChar] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -64,7 +64,6 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
   }, [filteredScenes]);
 
   useEffect(() => {
-    if (activeScene === null) return;
     const container = listRef.current;
     const el = container?.children[activeScene] as HTMLElement | undefined;
     if (container && el) {
@@ -74,9 +73,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
   }, [activeScene, filteredScenes.length]);
 
   useEffect(() => {
-    if (activeScene !== null) {
-      infoRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    infoRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeScene]);
 
   useEffect(() => {
@@ -108,11 +105,9 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
       const set = new Set<string>();
       filteredScenes.forEach((s) => s.characters.forEach((c) => set.add(c)));
       present = characters.filter((c) => set.has(c.name));
-    } else if (activeScene !== null) {
+    } else {
       const sceneChars = filteredScenes[activeScene]?.characters || [];
       present = characters.filter((c) => sceneChars.includes(c.name));
-    } else {
-      present = characters;
     }
     const names = new Set(present.map((c) => c.name));
     const others = characters.filter((c) => !names.has(c.name));
@@ -124,7 +119,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
   sceneRefs.current = [];
 
   return (
-    <div className="flex h-full flex-col overflow-hidden" style={{ fontFamily: "Courier, monospace" }}>
+    <div className="flex h-full flex-col overflow-visible" style={{ fontFamily: "Courier, monospace" }}>
       <div className="mb-4 flex justify-center">
         <div className="relative">
           <button
@@ -144,7 +139,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
               aria-label="reset"
               onClick={() => {
                 setFilterChar(null);
-                setActiveScene(null);
+                setActiveScene(0);
                 setShowReset(false);
               }}
               className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-gray-800 text-white shadow"
@@ -154,8 +149,8 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
           )}
         </div>
       </div>
-      <div className="flex flex-1 gap-6 overflow-hidden">
-        <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white" ref={listRef}>
+      <div className="flex flex-1 gap-6 overflow-visible">
+        <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg" ref={listRef}>
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.sceneNumber || originalIdx + 1;
@@ -238,16 +233,16 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
         </div>
         <div
           ref={infoRef}
-          className="w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-xl backdrop-blur-xl hidden lg:block"
+          className="w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-2xl backdrop-blur-xl hidden lg:block"
         >
-          {activeScene !== null ? (
+          {filteredScenes[activeScene] ? (
             <SceneInfoPanel
               scene={filteredScenes[activeScene]}
               characters={characters}
               onAssignActor={onAssignActor}
             />
           ) : (
-            <div className="text-sm text-gray-500">Select a scene</div>
+            <div className="text-sm text-gray-500">No scene</div>
           )}
         </div>
       </div>
@@ -256,7 +251,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
           <button
             onClick={() => {
               setFilterChar(null);
-              setActiveScene(null);
+              setActiveScene(0);
               requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
             }}
             className="flex-shrink-0 self-start rounded-lg border bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50"
@@ -284,17 +279,20 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
                           el?.scrollIntoView({ behavior: "smooth", block: "start" });
                         });
                       } else {
-                        setActiveScene(null);
+                        setActiveScene(0);
                         requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                       }
                     }}
-                className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
+                className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left shadow-sm hover:bg-gray-50 ${
                       filterChar === char.name ? "bg-gray-100 font-bold" : ""
                     }`}
                   >
                     <span className={`block rounded px-1 font-bold ${colorMap[char.name]} text-gray-800`}>
                       {char.name}
                     </span>
+                    {char.actorName && (
+                      <div className="mt-0.5 text-[10px] text-gray-500">{char.actorName}</div>
+                    )}
                     <div className="mt-1 text-[10px] leading-tight text-gray-600">
                       <div>{char.sceneCount} scenes</div>
                       <div>{char.dialogueCount} dialogues</div>
@@ -331,15 +329,18 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
                           el?.scrollIntoView({ behavior: "smooth", block: "start" });
                         });
                       } else {
-                        setActiveScene(null);
+                        setActiveScene(0);
                         requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                       }
                     }}
-                className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
+                className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left shadow-sm hover:bg-gray-50 ${
                       filterChar === char.name ? "bg-gray-100 font-bold" : ""
                     }`}
                   >
                     <span className="block rounded px-1 font-bold bg-gray-200 text-gray-800">{char.name}</span>
+                    {char.actorName && (
+                      <div className="mt-0.5 text-[10px] text-gray-500">{char.actorName}</div>
+                    )}
                     <div className="mt-1 text-[10px] leading-tight text-gray-600">
                       <div>{char.sceneCount} scenes</div>
                       <div>{char.dialogueCount} dialogues</div>

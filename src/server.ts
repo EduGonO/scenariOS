@@ -66,9 +66,10 @@ async function translateToEnglish(text?: string): Promise<string | undefined> {
   }
 }
 
-async function estimateDuration(text: string): Promise<number | undefined> {
+async function estimateDuration(text: string): Promise<number> {
+  const fallback = Math.round(text.split(/\s+/).length / 3);
   const key = process.env.MISTRAL_API_KEY;
-  if (!key) return undefined;
+  if (!key) return fallback;
   try {
     const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
       method: "POST",
@@ -90,9 +91,9 @@ async function estimateDuration(text: string): Promise<number | undefined> {
     });
     const data = await res.json();
     const out = parseInt(data?.choices?.[0]?.message?.content?.trim(), 10);
-    return Number.isFinite(out) ? out : undefined;
+    return Number.isFinite(out) ? out : fallback;
   } catch {
-    return undefined;
+    return fallback;
   }
 }
 

@@ -13,7 +13,7 @@ export default function Home() {
   const [author, setAuthor] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
 
-  async function fetchAllScenes(): Promise<Scene[]> {
+  async function fetchAllScenes(): Promise<any[]> {
     const res = await fetch("/mcp", {
       method: "POST",
       headers: {
@@ -62,9 +62,20 @@ export default function Home() {
       }
       await registerScenes(parsedScenes);
       const storedScenes = await fetchAllScenes();
-      setScenes(storedScenes);
+      const merged = parsedScenes.map((sc) => {
+        const meta = storedScenes.find((s) => s.id === String(sc.sceneNumber));
+        return meta
+          ? {
+              ...sc,
+              sceneDuration: meta.sceneDuration,
+              shootingDates: meta.shootingDates,
+              shootingLocations: meta.shootingLocations,
+            }
+          : sc;
+      });
+      setScenes(merged);
       if (typeof window !== "undefined") {
-        localStorage.setItem("scenes", JSON.stringify(storedScenes));
+        localStorage.setItem("scenes", JSON.stringify(merged));
       }
       setLoading(false);
     };
@@ -128,10 +139,10 @@ export default function Home() {
 
   return (
     <main
-      className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
+      className="flex h-screen flex-col bg-gradient-to-br from-gray-50 to-gray-200"
       style={{ height: "100dvh" }}
     >
-      <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden p-6">
+      <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-visible p-6">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-light text-gray-600">scenariOS</h1>
           <div className="flex gap-2">
@@ -162,7 +173,7 @@ export default function Home() {
           </div>
         )}
         {scenes.length > 0 && (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-visible">
             <ScriptDisplay
               scenes={scenes}
               characters={characters}

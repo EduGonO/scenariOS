@@ -13,3 +13,12 @@ body {
   overflow: hidden;
 }
 
+/* Hide scrollbars */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
