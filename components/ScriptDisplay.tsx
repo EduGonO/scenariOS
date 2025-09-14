@@ -1,10 +1,16 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Scene, ScenePart, CharacterStats, cleanName } from "../utils/parseScript";
+import Calendar from "./Calendar";
+import LocationMap from "./LocationMap";
+import WeatherPanel from "./WeatherPanel";
 
 interface Props {
   scenes: Scene[];
   characters: CharacterStats[];
   onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
+  onUpdateScene?: (index: number, partial: Partial<Scene>) => void;
+  filmingStart?: string;
+  filmingEnd?: string;
 }
 
 const COLORS = [
@@ -19,7 +25,14 @@ const COLORS = [
   "bg-orange-200",
 ];
 
-export default function ScriptDisplay({ scenes, characters, onAssignActor }: Props) {
+export default function ScriptDisplay({
+  scenes,
+  characters,
+  onAssignActor,
+  onUpdateScene,
+  filmingStart,
+  filmingEnd,
+}: Props) {
   const [activeScene, setActiveScene] = useState(0);
   const [filterChar, setFilterChar] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
@@ -244,8 +257,12 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
           {filteredScenes[activeScene] ? (
             <SceneInfoPanel
               scene={filteredScenes[activeScene]}
+              index={scenes.indexOf(filteredScenes[activeScene])}
               characters={characters}
               onAssignActor={onAssignActor}
+              onUpdateScene={onUpdateScene}
+              filmingStart={filmingStart}
+              filmingEnd={filmingEnd}
             />
           ) : (
             <div className="text-sm text-gray-500">No scene</div>
@@ -373,12 +390,20 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
 
 function SceneInfoPanel({
   scene,
+  index,
   characters,
   onAssignActor,
+  onUpdateScene,
+  filmingStart,
+  filmingEnd,
 }: {
   scene: Scene;
+  index: number;
   characters: CharacterStats[];
   onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
+  onUpdateScene?: (index: number, partial: Partial<Scene>) => void;
+  filmingStart?: string;
+  filmingEnd?: string;
 }) {
   const formatDuration = (secs?: number | string) => {
     const total = Number(secs);
@@ -402,6 +427,140 @@ function SceneInfoPanel({
       },
   );
 
+  const [dates, setDates] = useState<string[]>([]);
+  useEffect(() => {
+    fetch("/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: {
+          name: "calendar_suggest",
+          arguments: { id: String(scene.sceneNumber), time: scene.time },
+        },
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        try {
+          const text = data?.result?.content?.[0]?.text;
+          if (text) setDates(JSON.parse(text).dates || []);
+        } catch {
+          setDates([]);
+        }
+      })
+      .catch(() => setDates([]));
+  }, [scene.sceneNumber, scene.time]);
+
+  const [query, setQuery] = useState("");
+  const [loc, setLoc] = useState<{ primary?: any; backups?: any[] }>({});
+  function searchLocation() {
+    fetch("/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: "map_search", arguments: { query } },
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        try {
+          const text = data?.result?.content?.[0]?.text;
+          if (text) setLoc(JSON.parse(text));
+        } catch {
+          setLoc({});
+        }
+      })
+      .catch(() => setLoc({}));
+  }
+
+  function showSimilar() {
+    if (!primary) return;
+    fetch("/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: {
+          name: "map_similar",
+          arguments: { lat: primary.lat, lon: primary.lon, query },
+        },
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        try {
+          const text = data?.result?.content?.[0]?.text;
+          if (text) setLoc((prev) => ({ ...prev, backups: JSON.parse(text).backups }));
+        } catch {
+          setLoc((prev) => ({ ...prev, backups: [] }));
+        }
+      })
+      .catch(() => setLoc((prev) => ({ ...prev, backups: [] })));
+  }
+
+  function removeLocation(name: string) {
+    const next = scene.shootingLocations.filter((n) => n !== name);
+    onUpdateScene?.(index, { shootingLocations: next });
+    if (loc.primary?.name === name) setLoc((prev) => ({ ...prev, primary: undefined }));
+  }
+
+  function toggleDate(d: string) {
+    const exists = scene.shootingDates.some((x) => x.startsWith(d));
+    const next = exists
+      ? scene.shootingDates.filter((x) => !x.startsWith(d))
+      : [...scene.shootingDates, d];
+    onUpdateScene?.(index, { shootingDates: next });
+  }
+
+  function setTime(date: string, time: string) {
+    const next = scene.shootingDates.map((d) => {
+      const [dt] = d.split("T");
+      return dt === date ? (time ? `${dt}T${time}` : dt) : d;
+    });
+    onUpdateScene?.(index, { shootingDates: next });
+  }
+
+  function computeEnd(date: string, time: string) {
+    const duration = Number(scene.sceneDuration) || 0;
+    const start = new Date(`${date}T${time}`);
+    const end = new Date(start.getTime() + duration * 1000);
+    return end.toISOString().slice(11, 16);
+  }
+  function selectLocation(l: any) {
+    const exists = scene.shootingLocations.includes(l.name);
+    const next = exists
+      ? scene.shootingLocations.filter((n) => n !== l.name)
+      : [...scene.shootingLocations, l.name];
+    onUpdateScene?.(index, { shootingLocations: next });
+    setLoc((prev) => ({ ...prev, primary: exists ? undefined : l }));
+  }
+
+  const primary = loc.primary;
+  const backups = loc.backups as any[] | undefined;
+  const selectedDate = scene.shootingDates[0]?.split("T")[0];
+  const filteredAvailable = dates.filter(
+    (d) =>
+      (!filmingStart || d >= filmingStart) &&
+      (!filmingEnd || d <= filmingEnd),
+  );
+
   return (
     <div className="space-y-6 text-sm text-gray-700">
       <div>
@@ -412,27 +571,108 @@ function SceneInfoPanel({
       </div>
       <div>
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Shooting Dates</h3>
+        <Calendar
+          available={filteredAvailable}
+          selected={scene.shootingDates.map((d) => d.split("T")[0])}
+          onToggle={toggleDate}
+          min={filmingStart}
+          max={filmingEnd}
+        />
         {scene.shootingDates.length ? (
-          <ul className="mt-1 space-y-1">
-            {scene.shootingDates.map((d) => (
-              <li key={d}>{d}</li>
-            ))}
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {scene.shootingDates.map((d) => {
+              const [dt, tm] = d.split("T");
+              const end = tm ? computeEnd(dt, tm) : "";
+              return (
+                <li
+                  key={d}
+                  className="flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs"
+                >
+                  <span>{dt}</span>
+                  <input
+                    type="time"
+                    value={tm || ""}
+                    onChange={(e) => setTime(dt, e.target.value)}
+                    className="ml-1 w-20 rounded border px-1"
+                  />
+                  {tm && <span>– {end}</span>}
+                  <button
+                    type="button"
+                    aria-label={`remove ${dt}`}
+                    onClick={() => toggleDate(dt)}
+                    className="ml-1 text-gray-600 hover:text-gray-900"
+                  >
+                    ×
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         ) : (
-          <p className="mt-1">Not scheduled</p>
+          <p className="mt-2 text-xs text-gray-500">Not scheduled</p>
         )}
       </div>
       <div>
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Shooting Locations</h3>
+        <div className="mb-2 flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 rounded border px-2 py-1 text-xs"
+            placeholder="Search location"
+          />
+          <button
+            type="button"
+            onClick={searchLocation}
+            className="rounded bg-gray-200 px-2 text-xs"
+          >
+            Go
+          </button>
+        </div>
+        <LocationMap
+          location={primary}
+          backups={backups}
+          onSelect={selectLocation}
+        />
+        {primary && (
+          <button
+            type="button"
+            onClick={showSimilar}
+            className="mt-2 rounded bg-gray-200 px-2 py-1 text-xs"
+          >
+            Show similar locations
+          </button>
+        )}
         {scene.shootingLocations.length ? (
-          <ul className="mt-1 space-y-1">
+          <ul className="mt-2 space-y-1">
             {scene.shootingLocations.map((l) => (
-              <li key={l}>{l}</li>
+              <li
+                key={l}
+                className="flex items-center justify-between rounded bg-green-100 px-2 py-1 text-xs"
+              >
+                <span>{l}</span>
+                <button
+                  type="button"
+                  aria-label={`remove ${l}`}
+                  onClick={() => removeLocation(l)}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  ×
+                </button>
+              </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-1">Unknown</p>
+          <p className="mt-2 text-xs text-gray-500">Unknown</p>
         )}
+      </div>
+      <div>
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Weather</h3>
+        <WeatherPanel
+          lat={primary?.lat}
+          lon={primary?.lon}
+          date={selectedDate}
+        />
       </div>
       <div>
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Cast</h3>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import FileUploader from "../components/FileUploader";
 import ScriptDisplay from "../components/ScriptDisplay";
@@ -12,6 +12,15 @@ export default function Home() {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("filmingStart", startDate);
+      localStorage.setItem("filmingEnd", endDate);
+    }
+  }, [startDate, endDate]);
 
   async function fetchAllScenes(): Promise<any[]> {
     const res = await fetch("/mcp", {
@@ -178,6 +187,17 @@ export default function Home() {
     );
   }
 
+  function updateScene(index: number, partial: Partial<Scene>) {
+    setScenes((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...partial };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scenes", JSON.stringify(next));
+      }
+      return next;
+    });
+  }
+
   return (
     <main className="flex h-full flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
       <div className="mx-auto flex w-full max-w-5xl flex-1 min-h-0 flex-col overflow-hidden p-6">
@@ -208,6 +228,26 @@ export default function Home() {
           <div className="mb-4 text-left">
             <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
             <p className="mt-1 text-base text-gray-700">by {author}</p>
+            <div className="mt-2 flex gap-4 text-sm text-gray-700">
+              <label className="flex items-center gap-1">
+                <span>Start:</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="rounded border px-1"
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                <span>End:</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="rounded border px-1"
+                />
+              </label>
+            </div>
           </div>
         )}
         {scenes.length > 0 && (
@@ -216,6 +256,9 @@ export default function Home() {
               scenes={scenes}
               characters={characters}
               onAssignActor={assignActor}
+              onUpdateScene={updateScene}
+              filmingStart={startDate}
+              filmingEnd={endDate}
             />
           </div>
         )}
