@@ -139,7 +139,7 @@ export default function ScriptDisplay({
       className="flex h-full min-h-0 flex-col overflow-y-hidden"
       style={{ fontFamily: "Courier, monospace" }}
     >
-      <div className="mb-4 flex justify-center">
+      <div className="mb-2 flex justify-center">
         <div className="relative">
           <button
             onClick={() => filterChar && setShowReset((v) => !v)}
@@ -168,8 +168,8 @@ export default function ScriptDisplay({
           )}
         </div>
       </div>
-      <div className="flex h-full flex-1 gap-6 overflow-visible">
-        <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg h-full" ref={listRef}>
+      <div className="flex flex-1 min-h-0 gap-6 overflow-visible">
+        <div className="h-full min-h-0 w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg" ref={listRef}>
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.sceneNumber || originalIdx + 1;
@@ -211,7 +211,7 @@ export default function ScriptDisplay({
             );
           })}
         </div>
-        <div ref={viewerRef} className="flex-1 overflow-y-auto px-4 pb-6 pt-0 space-y-8 h-full">
+        <div ref={viewerRef} className="flex-1 h-full min-h-0 overflow-y-auto px-4 pb-6 pt-0 space-y-8">
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.sceneNumber || originalIdx + 1;
@@ -257,7 +257,7 @@ export default function ScriptDisplay({
         </div>
         <div
           ref={infoRef}
-          className="hidden w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-2xl backdrop-blur-xl h-full lg:block"
+          className="hidden h-full min-h-0 w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-2xl backdrop-blur-xl lg:block"
         >
           {filteredScenes[activeScene] ? (
             <SceneInfoPanel
@@ -274,7 +274,7 @@ export default function ScriptDisplay({
           )}
         </div>
       </div>
-      <div className="mt-2 flex items-start gap-6 overflow-x-auto pb-2 scroll-px-4 min-h-[5rem] [&>*:first-child]:pl-4 [&>*:last-child]:pr-4">
+      <div className="mt-1 flex flex-none items-start gap-6 overflow-x-auto pb-1 scroll-px-4 min-h-[5rem] [&>*:first-child]:pl-4 [&>*:last-child]:pr-4">
         {filterChar && (
           <button
             onClick={() => {

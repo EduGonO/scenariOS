@@ -200,7 +200,7 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
-      <div className="flex h-full w-full flex-1 min-h-0 flex-col overflow-hidden px-4 py-6">
+      <div className="flex h-full w-full flex-1 min-h-0 flex-col overflow-hidden px-4 py-4">
         <div className="mb-2 flex items-center justify-between">
           <h1 className="text-sm font-light text-gray-600">scenariOS</h1>
           <div>
@@ -219,10 +219,10 @@ export default function Home() {
             <FileUploader onFile={processFile} loading={loading} />
           </>
         ) : (
-          <div className="mb-4 text-left">
+          <div className="mb-2 text-left">
             <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
             <p className="mt-1 text-sm text-gray-700">by {author}</p>
-            <div className="mt-2 flex gap-3 text-sm text-gray-700">
+            <div className="mt-1 flex gap-2 text-sm text-gray-700">
               <label className="flex items-center gap-2">
                 <span>Start:</span>
                 <input
