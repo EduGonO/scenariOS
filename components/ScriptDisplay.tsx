@@ -168,8 +168,8 @@ export default function ScriptDisplay({
           )}
         </div>
       </div>
-      <div className="flex flex-1 gap-6 overflow-visible">
-        <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg" ref={listRef}>
+      <div className="flex h-full flex-1 gap-6 overflow-visible">
+        <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg h-full" ref={listRef}>
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.sceneNumber || originalIdx + 1;
@@ -211,7 +211,7 @@ export default function ScriptDisplay({
             );
           })}
         </div>
-        <div ref={viewerRef} className="flex-1 overflow-y-auto px-4 pb-6 pt-0 space-y-8">
+        <div ref={viewerRef} className="flex-1 overflow-y-auto px-4 pb-6 pt-0 space-y-8 h-full">
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.sceneNumber || originalIdx + 1;
@@ -257,7 +257,7 @@ export default function ScriptDisplay({
         </div>
         <div
           ref={infoRef}
-          className="hidden w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-2xl backdrop-blur-xl lg:block"
+          className="hidden w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-2xl backdrop-blur-xl h-full lg:block"
         >
           {filteredScenes[activeScene] ? (
             <SceneInfoPanel

@@ -199,8 +199,8 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
-      <div className="flex w-full flex-1 min-h-0 flex-col overflow-hidden px-4 py-6">
+    <main className="flex h-dvh flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
+      <div className="flex h-full w-full flex-1 min-h-0 flex-col overflow-hidden px-4 py-6">
         <div className="mb-2 flex items-center justify-between">
           <h1 className="text-sm font-light text-gray-600">scenariOS</h1>
           <div>
@@ -245,7 +245,7 @@ export default function Home() {
           </div>
         )}
         {scenes.length > 0 && (
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <ScriptDisplay
               scenes={scenes}
               characters={characters}
