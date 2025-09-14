@@ -9,6 +9,8 @@ interface Props {
   characters: CharacterStats[];
   onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
   onUpdateScene?: (index: number, partial: Partial<Scene>) => void;
+  filmingStart?: string;
+  filmingEnd?: string;
 }
 
 const COLORS = [
@@ -23,7 +25,14 @@ const COLORS = [
   "bg-orange-200",
 ];
 
-export default function ScriptDisplay({ scenes, characters, onAssignActor, onUpdateScene }: Props) {
+export default function ScriptDisplay({
+  scenes,
+  characters,
+  onAssignActor,
+  onUpdateScene,
+  filmingStart,
+  filmingEnd,
+}: Props) {
   const [activeScene, setActiveScene] = useState(0);
   const [filterChar, setFilterChar] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
@@ -252,6 +261,8 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor, onUpd
               characters={characters}
               onAssignActor={onAssignActor}
               onUpdateScene={onUpdateScene}
+              filmingStart={filmingStart}
+              filmingEnd={filmingEnd}
             />
           ) : (
             <div className="text-sm text-gray-500">No scene</div>
@@ -383,12 +394,16 @@ function SceneInfoPanel({
   characters,
   onAssignActor,
   onUpdateScene,
+  filmingStart,
+  filmingEnd,
 }: {
   scene: Scene;
   index: number;
   characters: CharacterStats[];
   onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
   onUpdateScene?: (index: number, partial: Partial<Scene>) => void;
+  filmingStart?: string;
+  filmingEnd?: string;
 }) {
   const formatDuration = (secs?: number | string) => {
     const total = Number(secs);
@@ -507,11 +522,26 @@ function SceneInfoPanel({
   }
 
   function toggleDate(d: string) {
-    const exists = scene.shootingDates.includes(d);
+    const exists = scene.shootingDates.some((x) => x.startsWith(d));
     const next = exists
-      ? scene.shootingDates.filter((x) => x !== d)
+      ? scene.shootingDates.filter((x) => !x.startsWith(d))
       : [...scene.shootingDates, d];
     onUpdateScene?.(index, { shootingDates: next });
+  }
+
+  function setTime(date: string, time: string) {
+    const next = scene.shootingDates.map((d) => {
+      const [dt] = d.split("T");
+      return dt === date ? (time ? `${dt}T${time}` : dt) : d;
+    });
+    onUpdateScene?.(index, { shootingDates: next });
+  }
+
+  function computeEnd(date: string, time: string) {
+    const duration = Number(scene.sceneDuration) || 0;
+    const start = new Date(`${date}T${time}`);
+    const end = new Date(start.getTime() + duration * 1000);
+    return end.toISOString().slice(11, 16);
   }
   function selectLocation(l: any) {
     const exists = scene.shootingLocations.includes(l.name);
@@ -524,7 +554,12 @@ function SceneInfoPanel({
 
   const primary = loc.primary;
   const backups = loc.backups as any[] | undefined;
-  const selectedDate = scene.shootingDates[0];
+  const selectedDate = scene.shootingDates[0]?.split("T")[0];
+  const filteredAvailable = dates.filter(
+    (d) =>
+      (!filmingStart || d >= filmingStart) &&
+      (!filmingEnd || d <= filmingEnd),
+  );
 
   return (
     <div className="space-y-6 text-sm text-gray-700">
@@ -537,25 +572,41 @@ function SceneInfoPanel({
       <div>
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Shooting Dates</h3>
         <Calendar
-          available={dates}
-          selected={scene.shootingDates}
+          available={filteredAvailable}
+          selected={scene.shootingDates.map((d) => d.split("T")[0])}
           onToggle={toggleDate}
+          min={filmingStart}
+          max={filmingEnd}
         />
         {scene.shootingDates.length ? (
           <ul className="mt-2 flex flex-wrap gap-2">
-            {scene.shootingDates.map((d) => (
-              <li key={d} className="flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs">
-                <span>{d}</span>
-                <button
-                  type="button"
-                  aria-label={`remove ${d}`}
-                  onClick={() => toggleDate(d)}
-                  className="text-gray-600 hover:text-gray-900"
+            {scene.shootingDates.map((d) => {
+              const [dt, tm] = d.split("T");
+              const end = tm ? computeEnd(dt, tm) : "";
+              return (
+                <li
+                  key={d}
+                  className="flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs"
                 >
-                  ×
-                </button>
-              </li>
-            ))}
+                  <span>{dt}</span>
+                  <input
+                    type="time"
+                    value={tm || ""}
+                    onChange={(e) => setTime(dt, e.target.value)}
+                    className="ml-1 w-20 rounded border px-1"
+                  />
+                  {tm && <span>– {end}</span>}
+                  <button
+                    type="button"
+                    aria-label={`remove ${dt}`}
+                    onClick={() => toggleDate(dt)}
+                    className="ml-1 text-gray-600 hover:text-gray-900"
+                  >
+                    ×
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="mt-2 text-xs text-gray-500">Not scheduled</p>
