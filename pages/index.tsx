@@ -199,11 +199,11 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-full flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
-      <div className="mx-auto flex w-full max-w-5xl flex-1 min-h-0 flex-col overflow-hidden p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-base font-light text-gray-600">scenariOS</h1>
-          <div className="flex gap-2">
+    <main className="flex h-dvh flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
+      <div className="flex h-full w-full flex-1 min-h-0 flex-col overflow-hidden px-4 py-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h1 className="text-sm font-light text-gray-600">scenariOS</h1>
+          <div>
             <button
               type="button"
               onClick={() => setDebugVisible(true)}
@@ -211,47 +211,41 @@ export default function Home() {
             >
               Debug
             </button>
-            <Link
-              href="/debug"
-              className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
-            >
-              Debug Page
-            </Link>
           </div>
         </div>
         {!scenes.length ? (
           <>
-            <h2 className="mt-8 text-2xl font-light tracking-tight text-gray-900">Upload Film Script</h2>
+            <h2 className="mt-8 text-xl font-light tracking-tight text-gray-900">Upload Film Script</h2>
             <FileUploader onFile={processFile} loading={loading} />
           </>
         ) : (
-          <div className="mb-4 text-left">
-            <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
-            <p className="mt-1 text-base text-gray-700">by {author}</p>
-            <div className="mt-2 flex gap-4 text-sm text-gray-700">
-              <label className="flex items-center gap-1">
+          <div className="mb-2 text-left">
+            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+            <p className="mt-1 text-sm text-gray-700">by {author}</p>
+            <div className="mt-1 flex gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2">
                 <span>Start:</span>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="rounded border px-1"
+                  className="rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
                 />
               </label>
-              <label className="flex items-center gap-1">
+              <label className="flex items-center gap-2">
                 <span>End:</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="rounded border px-1"
+                  className="rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
                 />
               </label>
             </div>
           </div>
         )}
         {scenes.length > 0 && (
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <ScriptDisplay
               scenes={scenes}
               characters={characters}
@@ -264,8 +258,8 @@ export default function Home() {
         )}
       </div>
       {debugVisible && (
-        <div className="fixed inset-0 z-50 overflow-auto bg-black/50 p-6">
-          <div className="mx-auto max-w-5xl">
+        <div className="fixed inset-x-0 top-0 z-50 h-dvh overflow-auto bg-black/50 p-4 sm:p-6">
+          <div className="mx-auto">
             <div className="mb-4 text-right">
               <button
                 type="button"
