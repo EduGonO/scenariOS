@@ -10,6 +10,6 @@ body,
 }
 
 body {
-  overflow-y: auto;
+  overflow: hidden;
 }
 
