@@ -169,7 +169,18 @@ export default function McpDebug() {
       });
       const data = await res.json();
       const base64 = data.result?.content?.[0]?.text || '';
-      setPrintPdfUrl(base64 ? `data:application/pdf;base64,${base64}` : '');
+      if (base64) {
+        try {
+          const bin = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+          const blob = new Blob([bin], { type: 'application/pdf' });
+          setPrintPdfUrl(URL.createObjectURL(blob));
+        } catch (e: any) {
+          setPrintPdfUrl('');
+          setPrintResult(e.message || String(e));
+        }
+      } else {
+        setPrintPdfUrl('');
+      }
     } catch (err: any) {
       setPrintPdfUrl('');
       setPrintResult(err.message || String(err));

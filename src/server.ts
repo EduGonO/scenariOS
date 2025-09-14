@@ -8,6 +8,8 @@ import {
   createGoogleSheet,
   createPdfCallSheet,
 } from "../utils/google";
+import PDFDocument from "pdfkit";
+import { marked } from "marked";
 
 const SceneInfo = z.object({
   setting: z.string(),
@@ -562,6 +564,52 @@ export const getServer = (): McpServer => {
     return `${heading}\n${body}\n`;
   }
 
+  async function markdownToPdf(md: string): Promise<Buffer> {
+    const doc = new PDFDocument({ margin: 40 });
+    const chunks: Buffer[] = [];
+    return await new Promise((resolve) => {
+      doc.on("data", (c: Buffer) => chunks.push(c));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      const tokens = marked.lexer(md);
+      const renderInline = (toks: any[]) => {
+        toks.forEach((tok) => {
+          if (tok.type === "strong") {
+            doc.font("Helvetica-Bold").text(tok.text, { continued: true });
+            doc.font("Helvetica");
+          } else if (tok.type === "codespan") {
+            doc.font("Courier").text(tok.text, { continued: true });
+            doc.font("Helvetica");
+          } else if (tok.type === "text") {
+            doc.text(tok.text, { continued: true });
+          } else if (tok.type === "space") {
+            doc.text(" ", { continued: true });
+          } else if (tok.type === "br") {
+            doc.text("");
+          }
+        });
+        doc.text("");
+      };
+      const renderTokens = (toks: any[]) => {
+        toks.forEach((token) => {
+          if (token.type === "paragraph") {
+            renderInline(token.tokens || []);
+            doc.moveDown();
+          } else if (token.type === "text") {
+            renderInline(token.tokens || [token]);
+            doc.moveDown();
+          } else if (token.type === "space") {
+            doc.moveDown();
+          } else {
+            doc.text(token.raw);
+            doc.moveDown();
+          }
+        });
+      };
+      renderTokens(tokens);
+      doc.end();
+    });
+  }
+
   function buildNoResultsMessage({
     sceneNumber,
     characters,
@@ -647,10 +695,8 @@ export const getServer = (): McpServer => {
       if (!results.length)
         return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
       const formatted = results.map(formatScene).join("\n\n");
-      const { mdToPdf } = await import("md-to-pdf");
-      const pdf = await mdToPdf({ content: formatted });
-      const buf = pdf?.content as Buffer | undefined;
-      return { content: [{ type: "text", text: buf?.toString("base64") || "" }] };
+      const buf = await markdownToPdf(formatted);
+      return { content: [{ type: "text", text: buf.toString("base64") }] };
     },
   );
 

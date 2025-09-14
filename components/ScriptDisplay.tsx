@@ -142,18 +142,18 @@ export default function ScriptDisplay({
         a.click();
         URL.revokeObjectURL(url);
       } else {
-        const byteChars = atob(text);
-        const byteNumbers = new Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) {
-          byteNumbers[i] = byteChars.charCodeAt(i);
+        try {
+          const binary = Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
+          const blob = new Blob([binary], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "scenes.pdf";
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error("Failed to decode PDF", e);
         }
-        const blob = new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "scenes.pdf";
-        a.click();
-        URL.revokeObjectURL(url);
       }
     } catch (err) {
       console.error("Failed to export scenes", err);
