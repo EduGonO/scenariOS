@@ -25,6 +25,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
   const [showReset, setShowReset] = useState(false);
   const viewerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const infoRef = useRef<HTMLDivElement>(null);
   const sceneRefs = useRef<HTMLDivElement[]>([]);
 
   const colorMap = useMemo(() => {
@@ -73,6 +74,12 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
   }, [activeScene, filteredScenes.length]);
 
   useEffect(() => {
+    if (activeScene !== null) {
+      infoRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [activeScene]);
+
+  useEffect(() => {
     listRef.current?.scrollTo({ top: 0 });
   }, [filterChar]);
 
@@ -86,7 +93,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
       const base = normalize(tok);
       if (colorMap[base]) {
         return (
-          <span key={idx} className={`rounded px-1 font-semibold ${colorMap[base]} text-gray-800`}>
+          <span key={idx} className={`rounded px-1 font-bold ${colorMap[base]} text-gray-800`}>
             {tok}
           </span>
         );
@@ -126,7 +133,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
           >
             {filterChar ? (
               <>
-                Scenes with <span className="font-semibold">{filterChar}</span> ({filteredScenes.length})
+                Scenes with <span className="font-bold">{filterChar}</span> ({filteredScenes.length})
               </>
             ) : (
               <>All {scenes.length} scenes</>
@@ -211,7 +218,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
                     )}
                     <div className="flex flex-wrap gap-1 min-h-[1.25rem]">
                       {scene.characters.map((c) => (
-                        <span key={c} className={`rounded px-1 text-xs font-medium ${colorMap[c]} text-gray-800`}>
+                        <span key={c} className={`rounded px-1 text-xs font-bold ${colorMap[c]} text-gray-800`}>
                           {c}
                         </span>
                       ))}
@@ -229,7 +236,10 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
             );
           })}
         </div>
-        <div className="w-72 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm hidden lg:block">
+        <div
+          ref={infoRef}
+          className="w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-xl backdrop-blur-xl hidden lg:block"
+        >
           {activeScene !== null ? (
             <SceneInfoPanel
               scene={filteredScenes[activeScene]}
@@ -278,11 +288,11 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
                         requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                       }
                     }}
-                    className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
-                      filterChar === char.name ? "bg-gray-100 font-medium" : ""
+                className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
+                      filterChar === char.name ? "bg-gray-100 font-bold" : ""
                     }`}
                   >
-                    <span className={`block rounded px-1 font-semibold ${colorMap[char.name]} text-gray-800`}>
+                    <span className={`block rounded px-1 font-bold ${colorMap[char.name]} text-gray-800`}>
                       {char.name}
                     </span>
                     <div className="mt-1 text-[10px] leading-tight text-gray-600">
@@ -325,11 +335,11 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
                         requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                       }
                     }}
-                    className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
-                      filterChar === char.name ? "bg-gray-100 font-medium" : ""
+                className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left hover:bg-gray-50 ${
+                      filterChar === char.name ? "bg-gray-100 font-bold" : ""
                     }`}
                   >
-                    <span className="block rounded px-1 font-semibold bg-gray-200 text-gray-800">{char.name}</span>
+                    <span className="block rounded px-1 font-bold bg-gray-200 text-gray-800">{char.name}</span>
                     <div className="mt-1 text-[10px] leading-tight text-gray-600">
                       <div>{char.sceneCount} scenes</div>
                       <div>{char.dialogueCount} dialogues</div>
@@ -385,15 +395,15 @@ function SceneInfoPanel({
   );
 
   return (
-    <div className="space-y-4 text-sm text-gray-700">
+    <div className="space-y-6 text-sm text-gray-700">
       <div>
-        <h3 className="text-xs font-semibold text-gray-500">Duration</h3>
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Duration</h3>
         <p className="mt-1 text-base font-medium text-gray-900">
           {formatDuration(scene.sceneDuration)}
         </p>
       </div>
       <div>
-        <h3 className="text-xs font-semibold text-gray-500">Shooting Dates</h3>
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Shooting Dates</h3>
         {scene.shootingDates.length ? (
           <ul className="mt-1 space-y-1">
             {scene.shootingDates.map((d) => (
@@ -405,7 +415,7 @@ function SceneInfoPanel({
         )}
       </div>
       <div>
-        <h3 className="text-xs font-semibold text-gray-500">Shooting Locations</h3>
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Shooting Locations</h3>
         {scene.shootingLocations.length ? (
           <ul className="mt-1 space-y-1">
             {scene.shootingLocations.map((l) => (
@@ -417,12 +427,12 @@ function SceneInfoPanel({
         )}
       </div>
       <div>
-        <h3 className="text-xs font-semibold text-gray-500">Cast</h3>
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Cast</h3>
         {cast.length ? (
           <ul className="mt-1 space-y-2">
             {cast.map((c) => (
               <li key={c.name}>
-                <div className="font-medium text-gray-900">{c.name}</div>
+                <div className="font-bold text-gray-900">{c.name}</div>
                 {c.actorName || c.actorEmail ? (
                   <div className="text-xs text-gray-600">
                     {c.actorName && <span>{c.actorName}</span>}
@@ -467,7 +477,7 @@ function Part({
     return (
       <div>
         <div className="mb-1 text-center">
-          <span className={`rounded px-2 ${colorMap[part.character]} text-gray-800 font-semibold`}>
+          <span className={`rounded px-2 ${colorMap[part.character]} text-gray-800 font-bold`}>
             {part.character}
           </span>
         </div>

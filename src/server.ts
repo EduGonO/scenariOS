@@ -82,7 +82,7 @@ async function estimateDuration(text: string): Promise<number | undefined> {
           {
             role: "system",
             content:
-              "Estimate the screen time duration in seconds for the following film scene. Reply with ONLY a number.",
+              "Estimate the approximate screen time in seconds for the following film scene, taking into account dialogue and action descriptions. Reply with ONLY a number.",
           },
           { role: "user", content: text },
         ],
@@ -131,6 +131,13 @@ async function guessLocations(prompt: string): Promise<string[]> {
   }
 }
 
+function buildDurationPrompt(scene: ParsedScene): string {
+  const body = scene.parts
+    .map((p: ScenePart) => (p.type === "dialogue" ? `${p.character}: ${p.text}` : p.text))
+    .join("\n");
+  return `${scene.heading}\n${body}`;
+}
+
 export const getServer = (): McpServer => {
   const server = new McpServer({ name: "scenarios-server", version: "0.1.0" }, { capabilities: {} });
 
@@ -160,17 +167,17 @@ export const getServer = (): McpServer => {
       shootingLocations,
     }): Promise<CallToolResult> => {
       let meta: z.infer<typeof SceneInfo>;
-      let raw = text || "";
+      let parsedScene: ParsedScene | undefined;
       if (!setting || !location || !time) {
         if (!text) throw new Error("text required when metadata missing");
         const parsed = parseScript(text);
-        const first = parsed.scenes[0];
-        if (!first) throw new Error("unable to parse scene");
+        parsedScene = parsed.scenes[0];
+        if (!parsedScene) throw new Error("unable to parse scene");
         meta = {
-          setting: first.setting,
-          location: first.location,
-          time: first.time,
-          characters: first.characters,
+          setting: parsedScene.setting,
+          location: parsedScene.location,
+          time: parsedScene.time,
+          characters: parsedScene.characters,
           sceneDuration: undefined,
           shootingDates: [],
           shootingLocations: [],
@@ -185,8 +192,14 @@ export const getServer = (): McpServer => {
           shootingDates: [],
           shootingLocations: [],
         };
+        if (text) {
+          const parsed = parseScript(text);
+          parsedScene = parsed.scenes[0];
+        }
       }
-      const duration = sceneDuration ?? (raw ? await estimateDuration(raw) : undefined);
+      const raw = text || (parsedScene ? buildDurationPrompt(parsedScene) : "");
+      const durationPrompt = parsedScene ? buildDurationPrompt(parsedScene) : raw;
+      const duration = sceneDuration ?? (durationPrompt ? await estimateDuration(durationPrompt) : undefined);
       const locationsGuess =
         shootingLocations && shootingLocations.length
           ? shootingLocations
@@ -219,20 +232,17 @@ export const getServer = (): McpServer => {
       const parsed = parseScript(text);
       sceneStore.length = 0;
       for (const sc of parsed.scenes as ParsedScene[]) {
-        const rawParts = sc.parts.map((p: ScenePart) =>
-          p.type === "dialogue" ? `${p.character}\n${p.text}` : p.text,
-        );
-        const raw = [sc.heading, ...rawParts].join("\n");
+        const prompt = buildDurationPrompt(sc);
         const scene: Scene = {
           id: sc.sceneNumber.toString(),
-          raw,
+          raw: prompt,
           setting: sc.setting,
           location: sc.location,
           time: sc.time,
           characters: sc.characters,
-          sceneDuration: await estimateDuration(raw),
+          sceneDuration: await estimateDuration(prompt),
           shootingDates: [],
-          shootingLocations: await guessLocations(raw),
+          shootingLocations: await guessLocations(prompt),
         };
         sceneStore.push(scene);
       }
