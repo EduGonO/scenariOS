@@ -2,14 +2,15 @@ import React, { useState } from "react";
 
 interface Props {
   available: string[];
-  onSelect?: (date: string) => void;
+  selected?: string[];
+  onToggle?: (date: string) => void;
 }
 
 function format(d: Date) {
   return d.toISOString().split("T")[0];
 }
 
-export default function Calendar({ available, onSelect }: Props) {
+export default function Calendar({ available, selected = [], onToggle }: Props) {
   const [current, setCurrent] = useState(new Date());
   const year = current.getFullYear();
   const month = current.getMonth();
@@ -64,14 +65,17 @@ export default function Calendar({ available, onSelect }: Props) {
                 if (!day) return <td key={j}></td>;
                 const date = format(new Date(year, month, day));
                 const availableDay = available.includes(date);
+                const picked = selected.includes(date);
                 return (
                   <td key={j} className="p-1">
                     <button
                       type="button"
-                      onClick={() => availableDay && onSelect?.(date)}
+                      onClick={() => availableDay && onToggle?.(date)}
                       className={`h-8 w-8 rounded-full border text-xs ${
                         availableDay
-                          ? "bg-blue-200 hover:bg-blue-300"
+                          ? picked
+                            ? "bg-blue-500 text-white hover:bg-blue-600"
+                            : "bg-blue-200 hover:bg-blue-300"
                           : "text-gray-400"
                       }`}
                     >

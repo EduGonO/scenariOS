@@ -10,7 +10,12 @@ export default function WeatherPanel({ lat, lon, date }: Props) {
   const [info, setInfo] = useState<{
     max?: number;
     min?: number;
-    code?: number;
+    rain?: number;
+    clouds?: number;
+    visibility?: number;
+    chance?: number;
+    sunrise?: string;
+    sunset?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -49,12 +54,28 @@ export default function WeatherPanel({ lat, lon, date }: Props) {
   if (!lat || !lon || !date)
     return <div className="text-gray-500">Select date & location</div>;
   if (!info) return <div className="text-gray-500">No forecast</div>;
+  const goldenStart = info.sunrise ? new Date(info.sunrise) : null;
+  const goldenEnd = info.sunset ? new Date(info.sunset) : null;
+  if (goldenStart) goldenStart.setMinutes(goldenStart.getMinutes() + 60);
+  if (goldenEnd) goldenEnd.setMinutes(goldenEnd.getMinutes() - 60);
   return (
-    <div className="text-sm">
+    <div className="space-y-1 text-sm">
       <div>
         High {info.max}°C / Low {info.min}°C
       </div>
-      <div>Code: {info.code}</div>
+      {info.clouds !== undefined && <div>Clouds: {info.clouds.toFixed(0)}%</div>}
+      {info.visibility !== undefined && (
+        <div>Visibility: {(info.visibility / 1000).toFixed(1)} km</div>
+      )}
+      {info.chance !== undefined && <div>Chance of rain: {info.chance}%</div>}
+      {info.rain !== undefined && <div>Rain: {info.rain} mm</div>}
+      {goldenStart && goldenEnd && (
+        <div>
+          Golden hour: {goldenStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -
+          {" "}
+          {goldenEnd.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </div>
+      )}
     </div>
   );
 }

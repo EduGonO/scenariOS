@@ -139,6 +139,21 @@ function buildDurationPrompt(scene: ParsedScene): string {
   return `${scene.heading}\n${body}`;
 }
 
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export const getServer = (): McpServer => {
   const server = new McpServer({ name: "scenarios-server", version: "0.1.0" }, { capabilities: {} });
 
@@ -591,6 +606,9 @@ export const getServer = (): McpServer => {
             name: b.display_name,
             lat: Number(b.lat),
             lon: Number(b.lon),
+            distanceKm: primary
+              ? haversine(Number(primary.lat), Number(primary.lon), Number(b.lat), Number(b.lon))
+              : undefined,
           })),
         };
         return { content: [{ type: "text", text: JSON.stringify(out) }] };
@@ -601,18 +619,60 @@ export const getServer = (): McpServer => {
   );
 
   server.tool(
+    "map_similar",
+    "Find nearby similar locations",
+    { lat: z.number(), lon: z.number(), query: z.string() },
+    async ({ lat, lon, query }): Promise<CallToolResult> => {
+      const delta = 0.05;
+      const viewbox = `${lon - delta},${lat - delta},${lon + delta},${lat + delta}`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        query,
+      )}&viewbox=${viewbox}&bounded=1`;
+      try {
+        const res = await fetch(url, { headers: { "User-Agent": "scenariOS" } });
+        const data = await res.json();
+        const backups = data.slice(0, 5).map((b: any) => ({
+          name: b.display_name,
+          lat: Number(b.lat),
+          lon: Number(b.lon),
+          distanceKm: haversine(lat, lon, Number(b.lat), Number(b.lon)),
+        }));
+        return { content: [{ type: "text", text: JSON.stringify({ backups }) }] };
+      } catch {
+        return { content: [{ type: "text", text: JSON.stringify({ backups: [] }) }] };
+      }
+    },
+  );
+
+  server.tool(
     "weather_forecast",
     "Get weather forecast for location/date",
     { lat: z.number(), lon: z.number(), date: z.string() },
     async ({ lat, lon, date }): Promise<CallToolResult> => {
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto&start_date=${date}&end_date=${date}`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset&hourly=cloudcover,visibility,precipitation_probability,precipitation&timezone=auto&start_date=${date}&end_date=${date}`;
         const res = await fetch(url);
         const data = await res.json();
+        const daily = data?.daily;
+        const hourly = data?.hourly;
+        const clouds = hourly?.cloudcover
+          ? hourly.cloudcover.reduce((a: number, b: number) => a + b, 0) / hourly.cloudcover.length
+          : undefined;
+        const visibility = hourly?.visibility
+          ? hourly.visibility.reduce((a: number, b: number) => a + b, 0) / hourly.visibility.length
+          : undefined;
+        const chance = hourly?.precipitation_probability
+          ? Math.max(...hourly.precipitation_probability)
+          : undefined;
         const out = {
-          max: data?.daily?.temperature_2m_max?.[0],
-          min: data?.daily?.temperature_2m_min?.[0],
-          code: data?.daily?.weathercode?.[0],
+          max: daily?.temperature_2m_max?.[0],
+          min: daily?.temperature_2m_min?.[0],
+          rain: daily?.precipitation_sum?.[0],
+          clouds,
+          visibility,
+          chance,
+          sunrise: daily?.sunrise?.[0],
+          sunset: daily?.sunset?.[0],
         };
         return { content: [{ type: "text", text: JSON.stringify(out) }] };
       } catch {
