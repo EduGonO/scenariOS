@@ -22,6 +22,9 @@ type Scene = z.infer<typeof SceneInfo> & { id: string; raw: string };
 const g = globalThis as any;
 g.__scenariOSSceneStore = g.__scenariOSSceneStore || [];
 const sceneStore: Scene[] = g.__scenariOSSceneStore as Scene[];
+g.__scenariOSCharacterStore = g.__scenariOSCharacterStore || [];
+type Character = { name: string; actorName?: string; actorEmail?: string };
+const characterStore: Character[] = g.__scenariOSCharacterStore as Character[];
 
 function stripDiacritics(str: string): string {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -234,6 +237,12 @@ export const getServer = (): McpServer => {
       const existingIndex = sceneStore.findIndex((s) => s.id === id);
       if (existingIndex !== -1) sceneStore.splice(existingIndex, 1);
       sceneStore.push(scene);
+      for (const name of scene.characters) {
+        const norm = normalizeName(name);
+        if (!characterStore.some((c) => normalizeName(c.name) === norm)) {
+          characterStore.push({ name });
+        }
+      }
       return { content: [{ type: "text", text: JSON.stringify(scene) }] };
     },
   );
@@ -247,6 +256,7 @@ export const getServer = (): McpServer => {
     async ({ text }): Promise<CallToolResult> => {
       const parsed = parseScript(text);
       sceneStore.length = 0;
+      characterStore.length = 0;
       for (const sc of parsed.scenes as ParsedScene[]) {
         const prompt = buildDurationPrompt(sc);
         const scene: Scene = {
@@ -262,6 +272,9 @@ export const getServer = (): McpServer => {
         };
         sceneStore.push(scene);
       }
+      for (const ch of parsed.characters) {
+        characterStore.push({ name: ch.name, actorName: ch.actorName, actorEmail: ch.actorEmail });
+      }
       return { content: [{ type: "text", text: `Parsed ${parsed.scenes.length} scenes` }] };
     },
   );
@@ -275,6 +288,9 @@ export const getServer = (): McpServer => {
     sceneDuration: z.union([z.string(), z.number()]).optional(),
     shootingDate: z.string().optional(),
     shootingLocation: z.string().optional(),
+    hasDates: z.boolean().optional(),
+    hasLocation: z.boolean().optional(),
+    minDateCount: z.union([z.string(), z.number()]).optional(),
   };
   const findSchema = z.object(findShape);
 
@@ -287,6 +303,9 @@ export const getServer = (): McpServer => {
     sceneDuration?: number;
     shootingDate?: string;
     shootingLocation?: string;
+    hasDates?: boolean;
+    hasLocation?: boolean;
+    minDateCount?: number;
   };
 
   const TIME_SYNONYMS: Record<string, string[]> = {
@@ -312,6 +331,9 @@ export const getServer = (): McpServer => {
       sceneDuration,
       shootingDate,
       shootingLocation,
+      hasDates,
+      hasLocation,
+      minDateCount,
     } = raw;
 
     if (typeof characters === "string") {
@@ -343,6 +365,7 @@ export const getServer = (): McpServer => {
 
     if (typeof sceneNumber === "number") sceneNumber = sceneNumber.toString();
     if (typeof sceneDuration === "string") sceneDuration = parseInt(sceneDuration, 10);
+    if (typeof minDateCount === "string") minDateCount = parseInt(minDateCount, 10);
 
     if (setting) {
       let s = setting;
@@ -366,6 +389,9 @@ export const getServer = (): McpServer => {
       sceneDuration: typeof sceneDuration === "number" && !isNaN(sceneDuration) ? sceneDuration : undefined,
       shootingDate,
       shootingLocation,
+      hasDates,
+      hasLocation,
+      minDateCount: typeof minDateCount === "number" && !isNaN(minDateCount) ? minDateCount : undefined,
     };
   }
 
@@ -386,7 +412,7 @@ export const getServer = (): McpServer => {
             {
               role: "system",
               content:
-                "Extract film scene search filters from the user request. Return a JSON object with optional keys: sceneNumber, characters, setting, location, time, sceneDuration, shootingDate, shootingLocation. characters must be an array of names.",
+                "Extract film scene search filters from the user request. Return a JSON object with optional keys: sceneNumber, characters, setting, location, time, sceneDuration, shootingDate, shootingLocation, hasDates, hasLocation, minDateCount. characters must be an array of names.",
             },
             { role: "user", content: prompt },
           ],
@@ -427,6 +453,9 @@ export const getServer = (): McpServer => {
     sceneDuration,
     shootingDate,
     shootingLocation,
+    hasDates,
+    hasLocation,
+    minDateCount,
   }: FindParams) {
     const chars = characters?.map((c) => normalizeName(c));
     return sceneStore.filter(
@@ -441,7 +470,10 @@ export const getServer = (): McpServer => {
         (!shootingLocation ||
           s.shootingLocations.some((loc) =>
             normalizeText(loc).includes(normalizeText(shootingLocation || "")),
-          )),
+          )) &&
+        (!hasDates || s.shootingDates.length > 0) &&
+        (!hasLocation || s.shootingLocations.length > 0) &&
+        (!minDateCount || s.shootingDates.length >= minDateCount),
     );
   }
 
@@ -475,6 +507,9 @@ export const getServer = (): McpServer => {
     sceneDuration,
     shootingDate,
     shootingLocation,
+    hasDates,
+    hasLocation,
+    minDateCount,
   }: FindParams) {
     const parts: string[] = [];
     if (characters?.length) parts.push(`with ${characters.join(" and ")}`);
@@ -484,6 +519,9 @@ export const getServer = (): McpServer => {
     if (shootingLocation) parts.push(`shot at ${shootingLocation}`);
     if (shootingDate) parts.push(`on ${shootingDate}`);
     if (sceneDuration) parts.push(`lasting ${sceneDuration}s`);
+    if (hasDates) parts.push("with scheduled dates");
+    if (hasLocation) parts.push("with shooting locations");
+    if (minDateCount) parts.push(`with at least ${minDateCount} dates`);
     if (sceneNumber) parts.push(`number ${sceneNumber}`);
     return `There are no scenes ${parts.join(" ")}`.replace(/\s+/g, " ").trim();
   }
@@ -558,6 +596,71 @@ export const getServer = (): McpServer => {
       }
       if (!results.length) return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
       return { content: [{ type: "text", text: results.length.toString() }] };
+    },
+  );
+
+  server.tool(
+    "characters",
+    "List characters and assigned actors",
+    { name: z.string().optional(), hasActor: z.boolean().optional() },
+    async ({ name, hasActor }): Promise<CallToolResult> => {
+      const norm = name ? normalizeName(name) : undefined;
+      const list = characterStore.filter(
+        (c) =>
+          (!norm || normalizeName(c.name) === norm) &&
+          (!hasActor || Boolean(c.actorName)),
+      );
+      return { content: [{ type: "text", text: JSON.stringify(list) }] };
+    },
+  );
+
+  server.tool(
+    "assign_actor",
+    "Assign actor and contact to a character",
+    {
+      character: z.string(),
+      actorName: z.string(),
+      actorEmail: z.string().optional(),
+    },
+    async ({ character, actorName, actorEmail }): Promise<CallToolResult> => {
+      const norm = normalizeName(character);
+      let entry = characterStore.find((c) => normalizeName(c.name) === norm);
+      if (!entry) {
+        entry = { name: character };
+        characterStore.push(entry);
+      } else {
+        entry.name = entry.name || character;
+      }
+      entry.actorName = actorName;
+      entry.actorEmail = actorEmail;
+      return { content: [{ type: "text", text: JSON.stringify(entry) }] };
+    },
+  );
+
+  server.tool(
+    "update_scene",
+    "Add or remove shooting dates or locations",
+    {
+      id: z.string(),
+      addDate: z.string().optional(),
+      removeDate: z.string().optional(),
+      addLocation: z.string().optional(),
+      removeLocation: z.string().optional(),
+    },
+    async ({ id, addDate, removeDate, addLocation, removeLocation }): Promise<CallToolResult> => {
+      const scene = sceneStore.find((s) => s.id === id);
+      if (!scene)
+        return { content: [{ type: "text", text: JSON.stringify({ error: "Scene not found" }) }] };
+      if (addDate && !scene.shootingDates.includes(addDate)) scene.shootingDates.push(addDate);
+      if (removeDate)
+        scene.shootingDates = scene.shootingDates.filter((d) => d !== removeDate);
+      if (addLocation && !scene.shootingLocations.includes(addLocation))
+        scene.shootingLocations.push(addLocation);
+      if (removeLocation)
+        scene.shootingLocations = scene.shootingLocations.filter(
+          (l) => normalizeText(l) !== normalizeText(removeLocation),
+        );
+      return { content: [{ type: "text", text: JSON.stringify(scene) }] };
     },
   );
 
