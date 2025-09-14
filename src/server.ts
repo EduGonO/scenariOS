@@ -172,9 +172,11 @@ export const getServer = (): McpServer => {
         .split(/[,/&]|\band\b/i)
         .map((c) => c.trim())
         .filter(Boolean);
-      characters = await Promise.all(list.map((c) => translateToEnglish(c)));
+      const translated = await Promise.all(list.map((c) => translateToEnglish(c)));
+      characters = translated.filter((c): c is string => Boolean(c));
     } else if (Array.isArray(characters)) {
-      characters = await Promise.all(characters.map((c) => translateToEnglish(c)));
+      const translated = await Promise.all(characters.map((c) => translateToEnglish(c)));
+      characters = translated.filter((c): c is string => Boolean(c));
     }
 
     if (typeof sceneNumber === "number") sceneNumber = sceneNumber.toString();
@@ -191,7 +193,8 @@ export const getServer = (): McpServer => {
       setting = s || undefined;
     }
 
-    return { sceneNumber, characters: characters as string[] | undefined, setting, location, time };
+    const chars = Array.isArray(characters) && characters.length ? (characters as string[]) : undefined;
+    return { sceneNumber, characters: chars, setting, location, time };
   }
 
   function normalizeSettingTokens(value: string): string[] {
