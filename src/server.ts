@@ -216,6 +216,41 @@ export const getServer = (): McpServer => {
     return { sceneNumber, characters: chars, setting, location, time };
   }
 
+  async function promptToParams(prompt: string): Promise<FindParams> {
+    const key = process.env.MISTRAL_API_KEY;
+    if (!key) return {};
+    try {
+      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: "mistral-small-latest",
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "Extract film scene search filters from the user request. Return a JSON object with optional keys: sceneNumber, characters, setting, location, time. characters must be an array of names.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+      });
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content?.trim();
+      if (!text) return {};
+      const raw = JSON.parse(text);
+      const parsed = findSchema.safeParse(raw);
+      if (!parsed.success) return {};
+      return await normalizeParams(parsed.data, true);
+    } catch {
+      return {};
+    }
+  }
+
   function normalizeSettingTokens(value: string): string[] {
     const lower = normalizeText(value);
     const tokens: string[] = [];
@@ -302,6 +337,20 @@ export const getServer = (): McpServer => {
         parsed = await normalizeParams(raw, true);
         results = filterScenes(parsed);
       }
+      if (!results.length)
+        return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+      const formatted = results.map(formatScene).join("\n\n");
+      return { content: [{ type: "text", text: formatted }] };
+    },
+  );
+
+  server.tool(
+    "query_scenes",
+    "Find and print scenes using a natural language prompt",
+    { prompt: z.string().describe("Natural language description of desired scenes") },
+    async ({ prompt }): Promise<CallToolResult> => {
+      const parsed = await promptToParams(prompt);
+      const results = filterScenes(parsed);
       if (!results.length)
         return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
       const formatted = results.map(formatScene).join("\n\n");
