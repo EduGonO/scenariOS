@@ -8,6 +8,7 @@ import {
   createGoogleSheet,
   createPdfCallSheet,
 } from "../utils/google";
+import PDFDocument from "pdfkit";
 
 const SceneInfo = z.object({
   setting: z.string(),
@@ -611,6 +612,33 @@ export const getServer = (): McpServer => {
         return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
       const formatted = results.map(formatScene).join("\n\n");
       return { content: [{ type: "text", text: formatted }] };
+    },
+  );
+
+  server.tool(
+    "print_pdf",
+    "Print scenes as a downloadable PDF",
+    findShape,
+    async (params): Promise<CallToolResult> => {
+      const raw = findSchema.parse(params);
+      let parsed = await normalizeParams(raw);
+      let results = filterScenes(parsed);
+      if (!results.length) {
+        parsed = await normalizeParams(raw, true);
+        results = filterScenes(parsed);
+      }
+      if (!results.length)
+        return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+      const formatted = results.map(formatScene).join("\n\n");
+      const doc = new PDFDocument();
+      const chunks: Buffer[] = [];
+      doc.on("data", (b) => chunks.push(b));
+      doc.fontSize(12).text(formatted);
+      doc.end();
+      const buffer: Buffer = await new Promise((resolve) => {
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+      });
+      return { content: [{ type: "text", text: buffer.toString("base64") }] };
     },
   );
 

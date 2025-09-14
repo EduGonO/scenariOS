@@ -20,6 +20,15 @@ export default function McpDebug() {
    const [printShootingDate, setPrintShootingDate] = useState('');
    const [printShootingLocation, setPrintShootingLocation] = useState('');
   const [printResult, setPrintResult] = useState('');
+  const [printPdfUrl, setPrintPdfUrl] = useState('');
+  const [assignCharacter, setAssignCharacter] = useState('');
+  const [assignActorName, setAssignActorName] = useState('');
+  const [assignActorEmail, setAssignActorEmail] = useState('');
+  const [assignResult, setAssignResult] = useState('');
+  const [sendCharacter, setSendCharacter] = useState('');
+  const [sendResult, setSendResult] = useState('');
+  const [callSceneIds, setCallSceneIds] = useState('');
+  const [callSheetResult, setCallSheetResult] = useState('');
   const [metaResult, setMetaResult] = useState('');
 
   async function registerScenes(parsed: Scene[]) {
@@ -118,6 +127,7 @@ export default function McpDebug() {
     if (printDuration) args.sceneDuration = Number(printDuration);
     if (printShootingDate) args.shootingDate = printShootingDate;
     if (printShootingLocation) args.shootingLocation = printShootingLocation;
+    setPrintPdfUrl('');
     await callMcp(
       {
         jsonrpc: '2.0',
@@ -126,6 +136,124 @@ export default function McpDebug() {
         params: { name: 'print', arguments: args },
       },
       setPrintResult,
+    );
+  }
+
+  async function runPrintPdf() {
+    const args: Record<string, any> = {};
+    if (printSceneNumber) args.sceneNumber = printSceneNumber;
+    if (printCharacter)
+      args.characters = printCharacter
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (printSetting) args.setting = printSetting;
+    if (printLocation) args.location = printLocation;
+    if (printTime) args.time = printTime;
+    if (printDuration) args.sceneDuration = Number(printDuration);
+    if (printShootingDate) args.shootingDate = printShootingDate;
+    if (printShootingLocation) args.shootingLocation = printShootingLocation;
+    try {
+      const res = await fetch('/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: { name: 'print_pdf', arguments: args },
+        }),
+      });
+      const data = await res.json();
+      const base64 = data.result?.content?.[0]?.text || '';
+      setPrintPdfUrl(base64 ? `data:application/pdf;base64,${base64}` : '');
+    } catch (err: any) {
+      setPrintPdfUrl('');
+      setPrintResult(err.message || String(err));
+    }
+  }
+
+  function downloadMarkdown() {
+    if (!printResult) return;
+    const blob = new Blob([printResult], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'scenes.md';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function runAssignActor() {
+    await callMcp(
+      {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/call',
+        params: {
+          name: 'assign_actor',
+          arguments: { name: assignCharacter, actorName: assignActorName, actorEmail: assignActorEmail },
+        },
+      },
+      setAssignResult,
+    );
+  }
+
+  async function runSendScenes() {
+    await callMcp(
+      {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/call',
+        params: { name: 'send_actor_scenes_doc', arguments: { character: sendCharacter } },
+      },
+      setSendResult,
+    );
+  }
+
+  function parseSceneIds(): string[] {
+    return callSceneIds
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  async function runCallSheetDoc() {
+    await callMcp(
+      {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/call',
+        params: { name: 'create_call_sheet_doc', arguments: { sceneIds: parseSceneIds() } },
+      },
+      setCallSheetResult,
+    );
+  }
+
+  async function runCallSheetSheet() {
+    await callMcp(
+      {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/call',
+        params: { name: 'create_call_sheet_sheet', arguments: { sceneIds: parseSceneIds() } },
+      },
+      setCallSheetResult,
+    );
+  }
+
+  async function runCallSheetPdf() {
+    await callMcp(
+      {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/call',
+        params: { name: 'create_call_sheet_pdf', arguments: { sceneIds: parseSceneIds() } },
+      },
+      setCallSheetResult,
     );
   }
 
@@ -267,15 +395,130 @@ export default function McpDebug() {
             value={printShootingLocation}
             onChange={(e) => setPrintShootingLocation(e.target.value)}
           />
-          <button
-            type="button"
-            className="rounded bg-purple-600 px-3 py-1 text-white hover:bg-purple-700"
-            onClick={runPrint}
-          >
-            Run
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded bg-purple-600 px-3 py-1 text-white hover:bg-purple-700"
+              onClick={runPrint}
+            >
+              Markdown
+            </button>
+            <button
+              type="button"
+              className="rounded bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
+              onClick={runPrintPdf}
+            >
+              PDF
+            </button>
+          </div>
           <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
             {printResult}
+          </pre>
+          {printResult && (
+            <button
+              type="button"
+              className="mt-2 rounded bg-gray-200 px-2 py-1 text-sm hover:bg-gray-300"
+              onClick={downloadMarkdown}
+            >
+              Download Markdown
+            </button>
+          )}
+          {printPdfUrl && (
+            <a
+              href={printPdfUrl}
+              download="scenes.pdf"
+              className="mt-2 inline-block rounded bg-gray-200 px-2 py-1 text-center text-sm hover:bg-gray-300"
+            >
+              Download PDF
+            </a>
+          )}
+        </section>
+
+        <section className="flex flex-col rounded border bg-white p-4 shadow">
+          <h2 className="mb-2 font-medium">Assign Actor</h2>
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Character"
+            value={assignCharacter}
+            onChange={(e) => setAssignCharacter(e.target.value)}
+          />
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Actor name"
+            value={assignActorName}
+            onChange={(e) => setAssignActorName(e.target.value)}
+          />
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Actor email"
+            value={assignActorEmail}
+            onChange={(e) => setAssignActorEmail(e.target.value)}
+          />
+          <button
+            type="button"
+            className="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
+            onClick={runAssignActor}
+          >
+            Save
+          </button>
+          <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
+            {assignResult}
+          </pre>
+        </section>
+
+        <section className="flex flex-col rounded border bg-white p-4 shadow">
+          <h2 className="mb-2 font-medium">Send Actor Scenes</h2>
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Character"
+            value={sendCharacter}
+            onChange={(e) => setSendCharacter(e.target.value)}
+          />
+          <button
+            type="button"
+            className="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+            onClick={runSendScenes}
+          >
+            Send
+          </button>
+          <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
+            {sendResult}
+          </pre>
+        </section>
+
+        <section className="flex flex-col rounded border bg-white p-4 shadow">
+          <h2 className="mb-2 font-medium">Create Call Sheet</h2>
+          <input
+            className="mb-2 rounded border p-2"
+            placeholder="Comma-separated scene IDs"
+            value={callSceneIds}
+            onChange={(e) => setCallSceneIds(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
+              onClick={runCallSheetDoc}
+            >
+              Google Doc
+            </button>
+            <button
+              type="button"
+              className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
+              onClick={runCallSheetSheet}
+            >
+              Google Sheet
+            </button>
+            <button
+              type="button"
+              className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
+              onClick={runCallSheetPdf}
+            >
+              PDF
+            </button>
+          </div>
+          <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
+            {callSheetResult}
           </pre>
         </section>
       </div>
