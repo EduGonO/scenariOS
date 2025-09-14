@@ -25,6 +25,22 @@ const COLORS = [
   "bg-orange-200",
 ];
 
+function sendScenesToActor(character: string) {
+  fetch("/mcp", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: Date.now(),
+      method: "tools/call",
+      params: { name: "send_actor_scenes_doc", arguments: { character } },
+    }),
+  });
+}
+
 export default function ScriptDisplay({
   scenes,
   characters,
@@ -691,6 +707,14 @@ function SceneInfoPanel({
                     {c.actorName && <span>{c.actorName}</span>}
                     {c.actorName && c.actorEmail && <span> · </span>}
                     {c.actorEmail && <span>{c.actorEmail}</span>}
+                    {c.actorEmail && (
+                      <button
+                        onClick={() => sendScenesToActor(c.name)}
+                        className="ml-2 underline text-blue-600"
+                      >
+                        Send scenes
+                      </button>
+                    )}
                   </div>
                 ) : onAssignActor ? (
                   <button
