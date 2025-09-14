@@ -64,14 +64,17 @@ export default function Home() {
       const storedScenes = await fetchAllScenes();
       const merged = parsedScenes.map((sc) => {
         const meta = storedScenes.find((s) => s.id === String(sc.sceneNumber));
-        return meta
-          ? {
-              ...sc,
-              sceneDuration: meta.sceneDuration,
-              shootingDates: meta.shootingDates,
-              shootingLocations: meta.shootingLocations,
-            }
-          : sc;
+        const wordCount = sc.parts
+          .map((p) => p.text)
+          .join(" ")
+          .split(/\s+/).length;
+        const estimated = Math.round(wordCount / 3);
+        return {
+          ...sc,
+          sceneDuration: meta?.sceneDuration ?? estimated,
+          shootingDates: meta?.shootingDates ?? [],
+          shootingLocations: meta?.shootingLocations ?? [],
+        };
       });
       setScenes(merged);
       if (typeof window !== "undefined") {
@@ -138,11 +141,8 @@ export default function Home() {
   }
 
   return (
-    <main
-      className="flex h-screen flex-col bg-gradient-to-br from-gray-50 to-gray-200"
-      style={{ height: "100dvh" }}
-    >
-      <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-visible p-6">
+    <main className="flex min-h-screen flex-col bg-gradient-to-br from-gray-50 to-gray-200">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden p-6">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-light text-gray-600">scenariOS</h1>
           <div className="flex gap-2">
@@ -173,7 +173,7 @@ export default function Home() {
           </div>
         )}
         {scenes.length > 0 && (
-          <div className="flex-1 overflow-visible">
+          <div className="flex-1 min-h-0">
             <ScriptDisplay
               scenes={scenes}
               characters={characters}
