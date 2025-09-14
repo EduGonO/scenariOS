@@ -20,10 +20,7 @@ g.__scenariOSSceneStore = g.__scenariOSSceneStore || [];
 const sceneStore: Scene[] = g.__scenariOSSceneStore as Scene[];
 
 export const getServer = (): McpServer => {
-  const server = new McpServer(
-    { name: "scenarios-server", version: "0.1.0" },
-    { capabilities: {} },
-  );
+  const server = new McpServer({ name: "scenarios-server", version: "0.1.0" }, { capabilities: {} });
 
   server.tool(
     "parse_scene",
@@ -72,21 +69,71 @@ export const getServer = (): McpServer => {
   );
 
   const findShape = {
-    sceneNumber: z.string().optional(),
-    characters: z.array(z.string()).optional(),
+    sceneNumber: z.union([z.string(), z.number()]).optional(),
+    characters: z.union([z.string(), z.array(z.string())]).optional(),
     setting: z.string().optional(),
     location: z.string().optional(),
     time: z.string().optional(),
   };
   const findSchema = z.object(findShape);
-  type FindParams = z.infer<typeof findSchema>;
+
+  type FindParams = {
+    sceneNumber?: string;
+    characters?: string[];
+    setting?: string;
+    location?: string;
+    time?: string;
+  };
+
+  const TIME_WORDS = ["night", "day", "dawn", "dusk", "evening", "morning", "afternoon"];
+
+  function normalizeParams(raw: z.infer<typeof findSchema>): FindParams {
+    let { sceneNumber, characters, setting, location, time } = raw;
+
+    if (typeof sceneNumber === "number") sceneNumber = sceneNumber.toString();
+
+    if (typeof characters === "string") {
+      characters = characters
+        .split(/[,/&]|\band\b/i)
+        .map((c) => c.trim())
+        .filter(Boolean);
+    }
+
+    if (setting) {
+      let s = setting;
+      for (const word of TIME_WORDS) {
+        const re = new RegExp(`\\b${word}\\b`, "i");
+        if (re.test(s)) {
+          time = time && !time.toLowerCase().includes(word) ? `${time} ${word}` : time || word;
+          s = s.replace(re, "").trim();
+        }
+      }
+      setting = s || undefined;
+    }
+
+    return { sceneNumber, characters, setting, location, time };
+  }
+
+  function normalizeSettingTokens(value: string): string[] {
+    const lower = value.toLowerCase();
+    const tokens: string[] = [];
+    if (/(^|\/|\b)(int|interior|inside)(\/|\b|$)/.test(lower)) tokens.push("int");
+    if (/(^|\/|\b)(ext|exterior|outside)(\/|\b|$)/.test(lower)) tokens.push("ext");
+    return tokens.length ? tokens : [lower];
+  }
+
+  function matchesSetting(sceneSetting: string, query: string) {
+    const sceneTokens = normalizeSettingTokens(sceneSetting);
+    const queryTokens = normalizeSettingTokens(query);
+    return queryTokens.every((t) => sceneTokens.includes(t));
+  }
 
   function filterScenes({ sceneNumber, characters, setting, location, time }: FindParams) {
     const chars = characters?.map((c) => c.toUpperCase());
     return sceneStore.filter(
       (s) =>
         (!sceneNumber || s.id === sceneNumber) &&
-        (!setting || s.setting.toLowerCase() === setting.toLowerCase()) &&
+        (!setting || matchesSetting(s.setting, setting)) &&
         (!location || s.location.toLowerCase().includes(location.toLowerCase())) &&
         (!time || s.time.toLowerCase().includes(time.toLowerCase())) &&
         (!chars || chars.every((c) => s.characters.includes(c))),
@@ -108,29 +155,18 @@ export const getServer = (): McpServer => {
     return `${heading}\n${body}`;
   }
 
-  server.tool(
-    "find",
-    "Find scenes by number or attributes",
-    findShape,
-    async (params: FindParams): Promise<CallToolResult> => {
-      const parsed = findSchema.parse(params);
-      const results = filterScenes(parsed);
-      return { content: [{ type: "text", text: JSON.stringify(results) }] };
-    },
-  );
+  server.tool("find", "Find scenes by number or attributes", findShape, async (params): Promise<CallToolResult> => {
+    const parsed = normalizeParams(findSchema.parse(params));
+    const results = filterScenes(parsed);
+    return { content: [{ type: "text", text: JSON.stringify(results) }] };
+  });
 
-  server.tool(
-    "print",
-    "Print scenes in formatted markdown",
-    findShape,
-    async (params: FindParams): Promise<CallToolResult> => {
-      const parsed = findSchema.parse(params);
-      const results = filterScenes(parsed);
-      const formatted = results.map(formatScene).join("\n\n");
-      return { content: [{ type: "text", text: formatted }] };
-    },
-  );
+  server.tool("print", "Print scenes in formatted markdown", findShape, async (params): Promise<CallToolResult> => {
+    const parsed = normalizeParams(findSchema.parse(params));
+    const results = filterScenes(parsed);
+    const formatted = results.map(formatScene).join("\n\n");
+    return { content: [{ type: "text", text: formatted }] };
+  });
 
   return server;
 };
-
