@@ -14,18 +14,17 @@ interface Props {
 }
 
 export default function LocationMap({ location, backups, onSelect }: Props) {
-  const markers: string[] = [];
-  if (location) markers.push(`${location.lat},${location.lon},red`);
-  backups?.forEach((b) => markers.push(`${b.lat},${b.lon},blue`));
-  const markerParams = markers.map((m) => `markers=${m}`).join("&");
-  const src =
-    location && markerParams
-      ? `https://staticmap.openstreetmap.de/staticmap.php?center=${location.lat},${location.lon}&zoom=14&size=400x200&${markerParams}`
-      : undefined;
+  const src = location
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${location.lon - 0.01},${location.lat - 0.01},${location.lon + 0.01},${location.lat + 0.01}&layer=mapnik&marker=${location.lat},${location.lon}`
+    : undefined;
   return (
     <div className="space-y-2">
-      {location && src ? (
-        <img src={src} alt="map" className="h-40 w-full rounded object-cover" />
+      {src ? (
+        <iframe
+          src={src}
+          className="h-40 w-full rounded"
+          loading="lazy"
+        />
       ) : (
         <div className="text-gray-500">No location selected</div>
       )}

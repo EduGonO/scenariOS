@@ -142,11 +142,18 @@ export default function ScriptDisplay({
         a.click();
         URL.revokeObjectURL(url);
       } else {
-        const url = `data:application/pdf;base64,${text}`;
+        const byteChars = atob(text);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) {
+          byteNumbers[i] = byteChars.charCodeAt(i);
+        }
+        const blob = new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = "scenes.pdf";
         a.click();
+        URL.revokeObjectURL(url);
       }
     } catch (err) {
       console.error("Failed to export scenes", err);

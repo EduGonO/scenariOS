@@ -59,20 +59,22 @@ export default function WeatherPanel({ lat, lon, date }: Props) {
   if (goldenStart) goldenStart.setMinutes(goldenStart.getMinutes() + 60);
   if (goldenEnd) goldenEnd.setMinutes(goldenEnd.getMinutes() - 60);
   return (
-    <div className="space-y-1 text-sm">
-      <div>
-        High {info.max}°C / Low {info.min}°C
+    <div className="space-y-1 text-xs">
+      <div className="flex flex-wrap gap-x-2 gap-y-1">
+        <span>
+          🌡️ {info.max}°/{info.min}°
+        </span>
+        {info.clouds !== undefined && <span>☁️ {info.clouds.toFixed(0)}%</span>}
+        {info.visibility !== undefined && (
+          <span>👁️ {(info.visibility / 1000).toFixed(1)} km</span>
+        )}
+        {info.chance !== undefined && <span>🌧️ {info.chance}%</span>}
+        {info.rain !== undefined && <span>💧 {info.rain} mm</span>}
       </div>
-      {info.clouds !== undefined && <div>Clouds: {info.clouds.toFixed(0)}%</div>}
-      {info.visibility !== undefined && (
-        <div>Visibility: {(info.visibility / 1000).toFixed(1)} km</div>
-      )}
-      {info.chance !== undefined && <div>Chance of rain: {info.chance}%</div>}
-      {info.rain !== undefined && <div>Rain: {info.rain} mm</div>}
       {goldenStart && goldenEnd && (
         <div>
-          Golden hour: {goldenStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -
-          {" "}
+          🌅
+          {goldenStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} –
           {goldenEnd.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
       )}

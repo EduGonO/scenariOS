@@ -8,7 +8,6 @@ import {
   createGoogleSheet,
   createPdfCallSheet,
 } from "../utils/google";
-import PDFDocument from "pdfkit";
 
 const SceneInfo = z.object({
   setting: z.string(),
@@ -530,19 +529,37 @@ export const getServer = (): McpServer => {
     if (/^\s*(INT|EXT)\./i.test(lines[0])) {
       lines = lines.slice(1);
     }
-    let body = lines.join("\n").trim();
-    for (const char of scene.characters) {
-      const regex = new RegExp(`\\b${char}\\b`, "gi");
-      body = body.replace(regex, `**${char.toUpperCase()}**`);
+    const out: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const next = lines[i + 1]?.trim();
+      if (/^[A-Z0-9 '()\-.]+$/.test(line) && next && next !== "") {
+        let dialogue = next;
+        i++;
+        while (i + 1 < lines.length && lines[i + 1].trim() && !/^[A-Z0-9 '()\-.]+$/.test(lines[i + 1].trim())) {
+          dialogue += " " + lines[i + 1].trim();
+          i++;
+        }
+        out.push(`**${line.toUpperCase()}** ${dialogue}`);
+        out.push("");
+      } else {
+        let replaced = line;
+        for (const char of scene.characters) {
+          const regex = new RegExp(`\\b${char}\\b`, "gi");
+          replaced = replaced.replace(regex, `**${char.toUpperCase()}**`);
+        }
+        out.push(replaced);
+      }
     }
+    let body = out.join("\n").trim();
     const meta: string[] = [];
-    if (scene.sceneDuration) meta.push(`Duration: ${scene.sceneDuration}s`);
-    if (scene.shootingDates.length) meta.push(`Dates: ${scene.shootingDates.join(", ")}`);
+    if (scene.sceneDuration) meta.push(`**Duration:** ${scene.sceneDuration}s`);
+    if (scene.shootingDates.length) meta.push(`**Dates:** ${scene.shootingDates.join(", ")}`);
     if (scene.shootingLocations.length)
-      meta.push(`Locations: ${scene.shootingLocations.join(", ")}`);
-    if (meta.length) body += (body ? "\n" : "") + meta.join(" | ");
-    if (body) body += "\n";
-    return `${heading}\n${body}`;
+      meta.push(`**Locations:** ${scene.shootingLocations.join(", ")}`);
+    if (meta.length) body += (body ? "\n\n" : "") + meta.join("  •  ");
+    return `${heading}\n${body}\n`;
   }
 
   function buildNoResultsMessage({
@@ -630,15 +647,10 @@ export const getServer = (): McpServer => {
       if (!results.length)
         return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
       const formatted = results.map(formatScene).join("\n\n");
-      const doc = new PDFDocument();
-      const chunks: Buffer[] = [];
-      doc.on("data", (b) => chunks.push(b));
-      doc.fontSize(12).text(formatted);
-      doc.end();
-      const buffer: Buffer = await new Promise((resolve) => {
-        doc.on("end", () => resolve(Buffer.concat(chunks)));
-      });
-      return { content: [{ type: "text", text: buffer.toString("base64") }] };
+      const { mdToPdf } = await import("md-to-pdf");
+      const pdf = await mdToPdf({ content: formatted });
+      const buf = pdf?.content as Buffer | undefined;
+      return { content: [{ type: "text", text: buf?.toString("base64") || "" }] };
     },
   );
 
