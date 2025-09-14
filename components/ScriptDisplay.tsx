@@ -25,25 +25,9 @@ const COLORS = [
   "bg-orange-200",
 ];
 
-function sendScenesToActor(character: string) {
-  fetch("/mcp", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json, text/event-stream",
-    },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: Date.now(),
-      method: "tools/call",
-      params: { name: "send_actor_scenes_doc", arguments: { character } },
-    }),
-  });
-}
-
-export default function ScriptDisplay({
-  scenes,
-  characters,
+  export default function ScriptDisplay({
+    scenes,
+    characters,
   onAssignActor,
   onUpdateScene,
   filmingStart,
@@ -765,21 +749,13 @@ function SceneInfoPanel({
                 {c.actorName || c.actorEmail ? (
                   <div className="text-xs text-gray-600">
                     {c.actorName && <span>{c.actorName}</span>}
-                    {c.actorName && c.actorEmail && <span> · </span>}
-                    {c.actorEmail && <span>{c.actorEmail}</span>}
-                    {c.actorEmail && (
-                      <button
-                        onClick={() => sendScenesToActor(c.name)}
-                        className="ml-2 underline text-blue-600"
-                      >
-                        Send scenes
-                      </button>
-                    )}
-                  </div>
-                ) : onAssignActor ? (
-                  <button
-                    onClick={() => {
-                      const actorName = prompt(`Actor name for ${c.name}`) || "";
+                      {c.actorName && c.actorEmail && <span> · </span>}
+                      {c.actorEmail && <span>{c.actorEmail}</span>}
+                    </div>
+                  ) : onAssignActor ? (
+                    <button
+                      onClick={() => {
+                        const actorName = prompt(`Actor name for ${c.name}`) || "";
                       const actorEmail = prompt(`Actor email for ${c.name}`) || "";
                       onAssignActor(c.name, actorName, actorEmail);
                     }}

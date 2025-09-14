@@ -1,16 +1,16 @@
 # scenariOS
 
-scenariOS is a Mistral MCP hackathon entry that turns raw film scripts into a schedule-aware production assistant. It exposes a web UI and an MCP server so Le Chat can read scripts, reason about logistics, and update metadata in real time.
+scenariOS transforms raw film scripts into a schedule-aware production assistant. It combines a responsive web interface with a Model Context Protocol (MCP) server so Le Chat can reason about scenes, logistics, and scheduling in real time.
 
 ## Highlights
 
-- Parse scripts into structured scenes with duration estimates and candidate locations.
-- Persist scenes and characters globally to track actor assignments and metadata.
-- Interactive calendar constrained by global filming dates; tap days to add or remove potential shooting dates and set start times with auto‑calculated end times.
-- Compact map showing the primary location and nearby backups with distance in km plus a "show similar" option.
-- Weather panel forecasting temperature, rain, clouds, visibility, and golden‑hour range for the chosen date and place.
-- Rich scene queries like "print all scheduled scenes" or "how many scenes have more than 3 dates".
-- Browser MCP inspector at `/debug` for trying tools directly in the browser.
+- Parse scripts into structured scenes with duration estimates and candidate shooting locations.
+- Persist scenes and characters to track actor assignments and scene metadata across sessions.
+- Interactive calendar constrained by global filming dates; tap days to add or remove potential shooting dates with auto-calculated end times.
+- Compact map showing the primary location and nearby backups with distances in kilometers plus a "show similar" option.
+- Weather panel forecasting temperature, rain, clouds, visibility, and golden-hour range for the chosen date and place.
+- Rich scene queries such as "print all scheduled scenes" or "how many scenes have more than 3 dates".
+- Built-in MCP inspector at `/debug` for exercising tools directly in the browser.
 
 ## MCP Tools
 
@@ -18,17 +18,14 @@ scenariOS is a Mistral MCP hackathon entry that turns raw film scripts into a sc
 |------|---------|
 | `parse_pdf` | Parse an entire script and seed scene/character stores. |
 | `parse_scene` | Register or update a single scene with metadata. |
-| `find` | Return scenes matching attributes such as characters, time, or scheduled dates. |
+| `find` | Return scenes matching attributes such as characters, time or scheduled dates. |
 | `print` | Render matching scenes as formatted markdown. |
-| `count` | Count scenes matching filters. |
+| `print_pdf` | Render matching scenes as a downloadable PDF. |
 | `query_scenes` | Natural language scene search. |
+| `count` | Count scenes matching filters. |
 | `characters` | List characters and assigned actors. |
 | `assign_actor` | Attach actor name/email to a character. |
-| `send_actor_scenes_doc` | Create and email an actor's scenes in Google Docs. |
-| `create_call_sheet_doc` | Generate a Google Docs call sheet for scenes. |
-| `create_call_sheet_sheet` | Generate a Google Sheets call sheet for scenes. |
-| `create_call_sheet_pdf` | Generate a PDF call sheet for scenes. |
-| `print_pdf` | Render matching scenes as a downloadable PDF. |
+| `create_call_sheet_pdf` | Generate and share a PDF call sheet for scenes. |
 | `update_scene` | Add or remove shooting dates or locations. |
 | `calendar_suggest` | Suggest viable shooting dates for a scene. |
 | `map_search` | Find a location and 3–4 nearby backups. |
@@ -54,6 +51,11 @@ npm run build
 
 The server listens on `PORT` (or `MCP_HTTP_PORT`), defaulting to `8080`.
 
+To generate call sheet PDFs, provide Google service account credentials:
+
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL`
+- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
+
 ## MCP Inspector
 
 Set `MISTRAL_API_KEY` and start the inspector:
@@ -62,4 +64,4 @@ Set `MISTRAL_API_KEY` and start the inspector:
 MISTRAL_API_KEY=your_key npm run inspector
 ```
 
-Point the inspector's streamable URL at `http://localhost:3000/mcp` (or your deployed endpoint) and call tools such as `calendar_suggest`, `map_search`, `weather_forecast`, or any of the scene query helpers to drive scheduling decisions from Le Chat.
+Point the inspector's streamable URL at `http://localhost:3000/mcp` (or your deployed endpoint) and call tools such as `calendar_suggest`, `map_search`, `weather_forecast` or any of the scene query helpers to drive scheduling decisions from Le Chat.

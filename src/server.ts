@@ -3,11 +3,7 @@ import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { parseScript } from "../utils/parseScript";
 import type { Scene as ParsedScene, ScenePart } from "../utils/parseScript";
-import {
-  createGoogleDoc,
-  createGoogleSheet,
-  createPdfCallSheet,
-} from "../utils/google";
+import { createPdfCallSheet } from "../utils/google";
 import PDFDocument from "pdfkit";
 import { marked } from "marked";
 
@@ -856,67 +852,6 @@ export const getServer = (): McpServer => {
     },
   );
 
-  server.tool(
-    "create_call_sheet_doc",
-    "Create Google Docs call sheet for scenes",
-    { sceneIds: z.array(z.string()) },
-    async ({ sceneIds }): Promise<CallToolResult> => {
-      const scenes = sceneStore.filter((s) => sceneIds.includes(s.id));
-      const emails = collectActorEmails(scenes);
-      const content = scenes.map((s) => formatCallSheet(s)).join("\n\n");
-      const url = await createGoogleDoc("Call Sheet", content, emails);
-      return { content: [{ type: "text", text: url }] };
-    },
-  );
-
-  server.tool(
-    "send_actor_scenes_doc",
-    "Create Google Doc of an actor's scenes and share",
-    { character: z.string() },
-    async ({ character }): Promise<CallToolResult> => {
-      const norm = normalizeName(character);
-      const scenes = sceneStore.filter((s) =>
-        s.characters.some((c) => normalizeName(c) === norm),
-      );
-      const actor = findCharacter(character);
-      if (!actor?.actorEmail) {
-        throw new Error("Actor email not found");
-      }
-      const content = scenes.map((s) => formatScene(s)).join("\n\n");
-      const url = await createGoogleDoc(`${character} Scenes`, content, [
-        actor.actorEmail,
-      ]);
-      return { content: [{ type: "text", text: url }] };
-    },
-  );
-
-  server.tool(
-    "create_call_sheet_sheet",
-    "Create Google Sheets call sheet for scenes",
-    { sceneIds: z.array(z.string()) },
-    async ({ sceneIds }): Promise<CallToolResult> => {
-      const scenes = sceneStore.filter((s) => sceneIds.includes(s.id));
-      const emails = collectActorEmails(scenes);
-      const rows: string[][] = [[
-        "Scene",
-        "Setting",
-        "Location",
-        "Time",
-        "Cast",
-      ]];
-      for (const sc of scenes) {
-        rows.push([
-          sc.id,
-          sc.setting,
-          sc.location,
-          sc.time,
-          sc.characters.join(", "),
-        ]);
-      }
-      const url = await createGoogleSheet("Call Sheet", rows, emails);
-      return { content: [{ type: "text", text: url }] };
-    },
-  );
 
   server.tool(
     "create_call_sheet_pdf",

@@ -25,9 +25,7 @@ export default function McpDebug() {
   const [assignActorName, setAssignActorName] = useState('');
   const [assignActorEmail, setAssignActorEmail] = useState('');
   const [assignResult, setAssignResult] = useState('');
-  const [sendCharacter, setSendCharacter] = useState('');
-  const [sendResult, setSendResult] = useState('');
-  const [callSceneIds, setCallSceneIds] = useState('');
+    const [callSceneIds, setCallSceneIds] = useState('');
   const [callSheetResult, setCallSheetResult] = useState('');
   const [metaResult, setMetaResult] = useState('');
 
@@ -213,48 +211,12 @@ export default function McpDebug() {
     );
   }
 
-  async function runSendScenes() {
-    await callMcp(
-      {
-        jsonrpc: '2.0',
-        id: Date.now(),
-        method: 'tools/call',
-        params: { name: 'send_actor_scenes_doc', arguments: { character: sendCharacter } },
-      },
-      setSendResult,
-    );
-  }
-
-  function parseSceneIds(): string[] {
-    return callSceneIds
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-
-  async function runCallSheetDoc() {
-    await callMcp(
-      {
-        jsonrpc: '2.0',
-        id: Date.now(),
-        method: 'tools/call',
-        params: { name: 'create_call_sheet_doc', arguments: { sceneIds: parseSceneIds() } },
-      },
-      setCallSheetResult,
-    );
-  }
-
-  async function runCallSheetSheet() {
-    await callMcp(
-      {
-        jsonrpc: '2.0',
-        id: Date.now(),
-        method: 'tools/call',
-        params: { name: 'create_call_sheet_sheet', arguments: { sceneIds: parseSceneIds() } },
-      },
-      setCallSheetResult,
-    );
-  }
+    function parseSceneIds(): string[] {
+      return callSceneIds
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
 
   async function runCallSheetPdf() {
     await callMcp(
@@ -477,61 +439,27 @@ export default function McpDebug() {
           </pre>
         </section>
 
-        <section className="flex flex-col rounded border bg-white p-4 shadow">
-          <h2 className="mb-2 font-medium">Send Actor Scenes</h2>
-          <input
-            className="mb-2 rounded border p-2"
-            placeholder="Character"
-            value={sendCharacter}
-            onChange={(e) => setSendCharacter(e.target.value)}
-          />
-          <button
-            type="button"
-            className="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
-            onClick={runSendScenes}
-          >
-            Send
-          </button>
-          <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
-            {sendResult}
-          </pre>
-        </section>
-
-        <section className="flex flex-col rounded border bg-white p-4 shadow">
-          <h2 className="mb-2 font-medium">Create Call Sheet</h2>
-          <input
-            className="mb-2 rounded border p-2"
-            placeholder="Comma-separated scene IDs"
-            value={callSceneIds}
-            onChange={(e) => setCallSceneIds(e.target.value)}
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
-              onClick={runCallSheetDoc}
-            >
-              Google Doc
-            </button>
-            <button
-              type="button"
-              className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
-              onClick={runCallSheetSheet}
-            >
-              Google Sheet
-            </button>
-            <button
-              type="button"
-              className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
-              onClick={runCallSheetPdf}
-            >
-              PDF
-            </button>
-          </div>
-          <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
-            {callSheetResult}
-          </pre>
-        </section>
+          <section className="flex flex-col rounded border bg-white p-4 shadow">
+            <h2 className="mb-2 font-medium">Create Call Sheet</h2>
+            <input
+              className="mb-2 rounded border p-2"
+              placeholder="Comma-separated scene IDs"
+              value={callSceneIds}
+              onChange={(e) => setCallSceneIds(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
+                onClick={runCallSheetPdf}
+              >
+                PDF
+              </button>
+            </div>
+            <pre className="mt-2 h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-sm">
+              {callSheetResult}
+            </pre>
+          </section>
       </div>
       <section className="flex flex-col rounded border bg-white p-4 shadow">
         <div className="mb-2 flex items-center justify-between">
