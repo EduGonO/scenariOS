@@ -299,7 +299,7 @@ export default function ScriptDisplay({
                 }}
                 data-index={idx}
               >
-                <div className="sticky top-0 z-10 -mx-4 bg-white px-4 py-2">
+                <div className="sticky top-0 z-0 bg-white px-2 py-2 rounded-sm border border-gray-200 bg-white shadow-sm">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold text-gray-700">{displayNumber}</span>
                     {scene.setting && (
