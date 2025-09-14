@@ -6,7 +6,6 @@ html,
 body,
 #__next {
   height: 100vh;
-  height: 100dvh;
 }
 
 body {

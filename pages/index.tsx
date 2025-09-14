@@ -13,6 +13,61 @@ export default function Home() {
   const [author, setAuthor] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
 
+  async function fetchAllScenes(): Promise<any[]> {
+    const res = await fetch("/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: "find", arguments: {} },
+      }),
+    });
+    const data = await res.json();
+    const text = data?.result?.content?.[0]?.text;
+    try {
+      return text ? JSON.parse(text) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function estimateSceneDuration(text: string): Promise<number> {
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
+    const fallback = Math.round(words / 3);
+    const key = process.env.NEXT_PUBLIC_MISTRAL_API_KEY;
+    if (!key) return fallback;
+    try {
+      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: "mistral-small-latest",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Estimate the approximate screen time in seconds for the following film scene. Reply with ONLY a number.",
+            },
+            { role: "user", content: text },
+          ],
+        }),
+      });
+      const data = await res.json();
+      const out = parseInt(data?.choices?.[0]?.message?.content?.trim(), 10);
+      return Number.isFinite(out) ? out : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
   async function processFile(file: File) {
     setLoading(true);
     const reader = new FileReader();
@@ -38,6 +93,31 @@ export default function Home() {
         localStorage.setItem("author", scriptAuthor);
       }
       await registerScenes(parsedScenes);
+      const storedScenes = await fetchAllScenes();
+      const merged: Scene[] = [];
+      for (const sc of parsedScenes) {
+        const meta = storedScenes.find((s) => s.id === String(sc.sceneNumber));
+        const prompt = [
+          sc.heading,
+          ...sc.parts.map((p) =>
+            p.type === "dialogue" ? `${p.character}: ${p.text}` : p.text,
+          ),
+        ].join("\n");
+        let duration = Number(meta?.sceneDuration);
+        if (!Number.isFinite(duration)) {
+          duration = await estimateSceneDuration(prompt);
+        }
+        merged.push({
+          ...sc,
+          sceneDuration: duration,
+          shootingDates: meta?.shootingDates ?? [],
+          shootingLocations: meta?.shootingLocations ?? [],
+        });
+      }
+      setScenes(merged);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scenes", JSON.stringify(merged));
+      }
       setLoading(false);
     };
     reader.readAsDataURL(file);
@@ -90,12 +170,17 @@ export default function Home() {
     }
   }
 
+  function assignActor(character: string, actorName: string, actorEmail: string) {
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.name === character ? { ...c, actorName, actorEmail } : c,
+      ),
+    );
+  }
+
   return (
-    <main
-      className="flex h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200"
-      style={{ height: "100dvh" }}
-    >
-      <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden p-6">
+    <main className="flex h-full flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 min-h-0 flex-col overflow-hidden p-6">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-light text-gray-600">scenariOS</h1>
           <div className="flex gap-2">
@@ -126,8 +211,12 @@ export default function Home() {
           </div>
         )}
         {scenes.length > 0 && (
-          <div className="flex-1 overflow-hidden">
-            <ScriptDisplay scenes={scenes} characters={characters} />
+          <div className="flex-1 min-h-0">
+            <ScriptDisplay
+              scenes={scenes}
+              characters={characters}
+              onAssignActor={assignActor}
+            />
           </div>
         )}
       </div>
