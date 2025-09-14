@@ -119,7 +119,10 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
   sceneRefs.current = [];
 
   return (
-    <div className="flex h-full flex-col overflow-visible" style={{ fontFamily: "Courier, monospace" }}>
+    <div
+      className="flex h-full min-h-0 flex-col overflow-hidden"
+      style={{ fontFamily: "Courier, monospace" }}
+    >
       <div className="mb-4 flex justify-center">
         <div className="relative">
           <button
@@ -149,7 +152,7 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
           )}
         </div>
       </div>
-      <div className="flex flex-1 gap-6 overflow-visible">
+      <div className="flex flex-1 gap-6 overflow-hidden">
         <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg" ref={listRef}>
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
@@ -374,12 +377,13 @@ function SceneInfoPanel({
   characters: CharacterStats[];
   onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
 }) {
-  const formatDuration = (secs?: number) => {
-    if (!secs && secs !== 0) return "–";
-    const m = Math.floor(secs / 60)
+  const formatDuration = (secs?: number | string) => {
+    const total = Number(secs);
+    if (!Number.isFinite(total)) return "–";
+    const m = Math.floor(total / 60)
       .toString()
       .padStart(2, "0");
-    const s = Math.floor(secs % 60)
+    const s = Math.floor(total % 60)
       .toString()
       .padStart(2, "0");
     return `${m}:${s}`;

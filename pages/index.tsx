@@ -64,14 +64,23 @@ export default function Home() {
       const storedScenes = await fetchAllScenes();
       const merged = parsedScenes.map((sc) => {
         const meta = storedScenes.find((s) => s.id === String(sc.sceneNumber));
-        const wordCount = sc.parts
-          .map((p) => p.text)
+        const wordCount = [
+          sc.heading,
+          ...sc.parts.map((p) =>
+            p.type === "dialogue" ? `${p.character} ${p.text}` : p.text,
+          ),
+        ]
           .join(" ")
-          .split(/\s+/).length;
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean).length;
         const estimated = Math.round(wordCount / 3);
+        const metaDuration = Number(meta?.sceneDuration);
         return {
           ...sc,
-          sceneDuration: meta?.sceneDuration ?? estimated,
+          sceneDuration: Number.isFinite(metaDuration)
+            ? metaDuration
+            : estimated,
           shootingDates: meta?.shootingDates ?? [],
           shootingLocations: meta?.shootingLocations ?? [],
         };
