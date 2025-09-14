@@ -136,7 +136,7 @@ export default function ScriptDisplay({
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col overflow-hidden"
+      className="flex h-full min-h-0 flex-col overflow-y-hidden"
       style={{ fontFamily: "Courier, monospace" }}
     >
       <div className="mb-4 flex justify-center">
@@ -168,13 +168,14 @@ export default function ScriptDisplay({
           )}
         </div>
       </div>
-      <div className="flex flex-1 gap-6 overflow-hidden">
+      <div className="flex flex-1 gap-6 overflow-visible">
         <div className="w-56 flex-shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg" ref={listRef}>
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.sceneNumber || originalIdx + 1;
             const type = scene.setting;
             const rest = scene.location;
+            const weight = scene.sceneDuration ? ` (${scene.sceneDuration}s)` : "";
             return (
               <button
                 key={idx}
@@ -190,7 +191,6 @@ export default function ScriptDisplay({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">{displayNumber}</span>
                   <div className="flex gap-1">
                     {type && (
                       <span className="rounded bg-gray-200 px-1 text-[10px] font-semibold text-gray-700">{type}</span>
@@ -201,13 +201,17 @@ export default function ScriptDisplay({
                       </span>
                     )}
                   </div>
+                  <span className="text-xs text-gray-500">
+                    {displayNumber}
+                    {weight}
+                  </span>
                 </div>
                 <div className="mt-1 text-xs text-gray-700">{rest}</div>
               </button>
             );
           })}
         </div>
-        <div ref={viewerRef} className="flex-1 overflow-y-auto px-6 pb-6 pt-0 space-y-8">
+        <div ref={viewerRef} className="flex-1 overflow-y-auto px-4 pb-6 pt-0 space-y-8">
           {filteredScenes.map((scene, idx) => {
             const originalIdx = scenes.indexOf(scene);
             const displayNumber = scene.sceneNumber || originalIdx + 1;
@@ -219,9 +223,9 @@ export default function ScriptDisplay({
                 }}
                 data-index={idx}
               >
-                <div className="sticky top-0 z-10 -mx-6 rounded-b-xl bg-white/70 px-6 py-2 backdrop-blur-sm shadow">
+                <div className="sticky top-0 z-10 -mx-4 bg-white px-4 py-2">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-semibold text-gray-700">{`${displayNumber}. ${scene.location}`}</span>
+                    <span className="font-semibold text-gray-700">{displayNumber}</span>
                     {scene.setting && (
                       <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">
                         {scene.setting}
@@ -230,7 +234,8 @@ export default function ScriptDisplay({
                     {scene.time && (
                       <span className="rounded bg-gray-200 px-1 text-xs font-semibold text-gray-700">{scene.time}</span>
                     )}
-                    <div className="flex flex-wrap gap-1 min-h-[1.25rem]">
+                    <span className="text-gray-700">{scene.location}</span>
+                    <div className="ml-auto flex flex-wrap gap-1 min-h-[1.25rem]">
                       {scene.characters.map((c) => (
                         <span key={c} className={`rounded px-1 text-xs font-bold ${colorMap[c]} text-gray-800`}>
                           {c}
@@ -252,7 +257,7 @@ export default function ScriptDisplay({
         </div>
         <div
           ref={infoRef}
-          className="w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-2xl backdrop-blur-xl hidden lg:block"
+          className="hidden w-80 flex-shrink-0 overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/70 to-white/40 p-6 shadow-2xl backdrop-blur-xl lg:block"
         >
           {filteredScenes[activeScene] ? (
             <SceneInfoPanel
@@ -269,7 +274,7 @@ export default function ScriptDisplay({
           )}
         </div>
       </div>
-      <div className="mt-4 flex items-start gap-6 overflow-x-auto pb-3 scroll-px-6 min-h-[5rem] [&>*:first-child]:pl-6 [&>*:last-child]:pr-6">
+      <div className="mt-2 flex items-start gap-6 overflow-x-auto pb-2 scroll-px-4 min-h-[5rem] [&>*:first-child]:pl-4 [&>*:last-child]:pr-4">
         {filterChar && (
           <button
             onClick={() => {
@@ -306,7 +311,7 @@ export default function ScriptDisplay({
                         requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                       }
                     }}
-                className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left shadow-sm hover:bg-gray-50 ${
+                    className={`flex-shrink-0 w-40 h-32 rounded-lg border bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50 ${
                       filterChar === char.name ? "bg-gray-100 font-bold" : ""
                     }`}
                   >
@@ -356,7 +361,7 @@ export default function ScriptDisplay({
                         requestAnimationFrame(() => viewerRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
                       }
                     }}
-                className={`flex-shrink-0 w-40 rounded-lg border bg-white px-3 py-1.5 text-left shadow-sm hover:bg-gray-50 ${
+                    className={`flex-shrink-0 w-40 h-32 rounded-lg border bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50 ${
                       filterChar === char.name ? "bg-gray-100 font-bold" : ""
                     }`}
                   >
