@@ -45,11 +45,19 @@ async function translateToEnglish(text?: string): Promise<string | undefined> {
       },
       body: JSON.stringify({
         model: "mistral-small-latest",
-        messages: [{ role: "user", content: `Translate to English: ${text}` }],
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a translator. Translate the user text to English and reply with ONLY the translated text without quotes or additional commentary.",
+          },
+          { role: "user", content: text },
+        ],
       }),
     });
     const data = await res.json();
-    return data?.choices?.[0]?.message?.content?.trim() || text;
+    const out = data?.choices?.[0]?.message?.content?.trim();
+    return out ? out.split(/\r?\n/)[0].trim() : text;
   } catch {
     return text;
   }
@@ -158,25 +166,36 @@ export const getServer = (): McpServer => {
     afternoon: ["afternoon", "tarde", "aprèm", "apres-midi"],
   };
 
-  async function normalizeParams(raw: z.infer<typeof findSchema>): Promise<FindParams> {
+  async function normalizeParams(
+    raw: z.infer<typeof findSchema>,
+    translate = false,
+  ): Promise<FindParams> {
     let { sceneNumber, characters, setting, location, time } = raw;
 
-    // translate inputs to English when possible
-    [setting, location, time] = await Promise.all([
-      translateToEnglish(setting),
-      translateToEnglish(location),
-      translateToEnglish(time),
-    ]);
     if (typeof characters === "string") {
       const list = characters
         .split(/[,/&]|\band\b/i)
         .map((c) => c.trim())
         .filter(Boolean);
-      const translated = await Promise.all(list.map((c) => translateToEnglish(c)));
-      characters = translated.filter((c): c is string => Boolean(c));
+      if (translate) {
+        const translated = await Promise.all(list.map((c) => translateToEnglish(c)));
+        characters = translated.filter((c): c is string => Boolean(c));
+      } else {
+        characters = list;
+      }
     } else if (Array.isArray(characters)) {
-      const translated = await Promise.all(characters.map((c) => translateToEnglish(c)));
-      characters = translated.filter((c): c is string => Boolean(c));
+      if (translate) {
+        const translated = await Promise.all(characters.map((c) => translateToEnglish(c)));
+        characters = translated.filter((c): c is string => Boolean(c));
+      }
+    }
+
+    if (translate) {
+      [setting, location, time] = await Promise.all([
+        translateToEnglish(setting),
+        translateToEnglish(location),
+        translateToEnglish(time),
+      ]);
     }
 
     if (typeof sceneNumber === "number") sceneNumber = sceneNumber.toString();
@@ -248,34 +267,64 @@ export const getServer = (): McpServer => {
     return `There are no scenes ${parts.join(" ")}`.replace(/\s+/g, " ").trim();
   }
 
-  server.tool("find", "Find scenes by number or attributes", findShape, async (params): Promise<CallToolResult> => {
-    const parsed = await normalizeParams(findSchema.parse(params));
-    const results = filterScenes(parsed);
-    if (!results.length)
-      return {
-        content: [
-          { type: "text", text: JSON.stringify([]) },
-          { type: "text", text: buildNoResultsMessage(parsed) },
-        ],
-      };
-    return { content: [{ type: "text", text: JSON.stringify(results) }] };
-  });
+  server.tool(
+    "find",
+    "Find scenes by number or attributes",
+    findShape,
+    async (params): Promise<CallToolResult> => {
+      const raw = findSchema.parse(params);
+      let parsed = await normalizeParams(raw);
+      let results = filterScenes(parsed);
+      if (!results.length) {
+        parsed = await normalizeParams(raw, true);
+        results = filterScenes(parsed);
+      }
+      if (!results.length)
+        return {
+          content: [
+            { type: "text", text: JSON.stringify([]) },
+            { type: "text", text: buildNoResultsMessage(parsed) },
+          ],
+        };
+      return { content: [{ type: "text", text: JSON.stringify(results) }] };
+    },
+  );
 
-  server.tool("print", "Print scenes in formatted markdown", findShape, async (params): Promise<CallToolResult> => {
-    const parsed = await normalizeParams(findSchema.parse(params));
-    const results = filterScenes(parsed);
-    if (!results.length)
-      return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
-    const formatted = results.map(formatScene).join("\n\n");
-    return { content: [{ type: "text", text: formatted }] };
-  });
+  server.tool(
+    "print",
+    "Print scenes in formatted markdown",
+    findShape,
+    async (params): Promise<CallToolResult> => {
+      const raw = findSchema.parse(params);
+      let parsed = await normalizeParams(raw);
+      let results = filterScenes(parsed);
+      if (!results.length) {
+        parsed = await normalizeParams(raw, true);
+        results = filterScenes(parsed);
+      }
+      if (!results.length)
+        return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+      const formatted = results.map(formatScene).join("\n\n");
+      return { content: [{ type: "text", text: formatted }] };
+    },
+  );
 
-  server.tool("count", "Count scenes matching attributes", findShape, async (params): Promise<CallToolResult> => {
-    const parsed = await normalizeParams(findSchema.parse(params));
-    const results = filterScenes(parsed);
-    if (!results.length) return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
-    return { content: [{ type: "text", text: results.length.toString() }] };
-  });
+  server.tool(
+    "count",
+    "Count scenes matching attributes",
+    findShape,
+    async (params): Promise<CallToolResult> => {
+      const raw = findSchema.parse(params);
+      let parsed = await normalizeParams(raw);
+      let results = filterScenes(parsed);
+      if (!results.length) {
+        parsed = await normalizeParams(raw, true);
+        results = filterScenes(parsed);
+      }
+      if (!results.length) return { content: [{ type: "text", text: buildNoResultsMessage(parsed) }] };
+      return { content: [{ type: "text", text: results.length.toString() }] };
+    },
+  );
 
   return server;
 };
