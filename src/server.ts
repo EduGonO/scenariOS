@@ -546,5 +546,80 @@ export const getServer = (): McpServer => {
     },
   );
 
+  server.tool(
+    "calendar_suggest",
+    "Suggest shooting dates",
+    { id: z.string(), time: z.string().optional() },
+    async ({ id, time }): Promise<CallToolResult> => {
+      const now = new Date();
+      const dates: string[] = [];
+      for (let i = 1; i <= 14; i++) {
+        const d = new Date(now);
+        d.setDate(now.getDate() + i);
+        const hrs = time && /NIGHT/i.test(time) ? 20 : 9;
+        d.setHours(hrs, 0, 0, 0);
+        dates.push(d.toISOString().split("T")[0]);
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify({ dates: dates.slice(0, 10) }) }],
+      };
+    },
+  );
+
+  server.tool(
+    "map_search",
+    "Search map location with backups",
+    { query: z.string() },
+    async ({ query }): Promise<CallToolResult> => {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        query,
+      )}`;
+      try {
+        const res = await fetch(url, { headers: { "User-Agent": "scenariOS" } });
+        const data = await res.json();
+        const primary = data[0];
+        const backups = data.slice(1, 4);
+        const out = {
+          primary: primary
+            ? {
+                name: primary.display_name,
+                lat: Number(primary.lat),
+                lon: Number(primary.lon),
+              }
+            : undefined,
+          backups: backups.map((b: any) => ({
+            name: b.display_name,
+            lat: Number(b.lat),
+            lon: Number(b.lon),
+          })),
+        };
+        return { content: [{ type: "text", text: JSON.stringify(out) }] };
+      } catch {
+        return { content: [{ type: "text", text: JSON.stringify({}) }] };
+      }
+    },
+  );
+
+  server.tool(
+    "weather_forecast",
+    "Get weather forecast for location/date",
+    { lat: z.number(), lon: z.number(), date: z.string() },
+    async ({ lat, lon, date }): Promise<CallToolResult> => {
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto&start_date=${date}&end_date=${date}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const out = {
+          max: data?.daily?.temperature_2m_max?.[0],
+          min: data?.daily?.temperature_2m_min?.[0],
+          code: data?.daily?.weathercode?.[0],
+        };
+        return { content: [{ type: "text", text: JSON.stringify(out) }] };
+      } catch {
+        return { content: [{ type: "text", text: JSON.stringify({}) }] };
+      }
+    },
+  );
+
   return server;
 };

@@ -1,10 +1,14 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Scene, ScenePart, CharacterStats, cleanName } from "../utils/parseScript";
+import Calendar from "./Calendar";
+import LocationMap from "./LocationMap";
+import WeatherPanel from "./WeatherPanel";
 
 interface Props {
   scenes: Scene[];
   characters: CharacterStats[];
   onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
+  onUpdateScene?: (index: number, partial: Partial<Scene>) => void;
 }
 
 const COLORS = [
@@ -19,7 +23,7 @@ const COLORS = [
   "bg-orange-200",
 ];
 
-export default function ScriptDisplay({ scenes, characters, onAssignActor }: Props) {
+export default function ScriptDisplay({ scenes, characters, onAssignActor, onUpdateScene }: Props) {
   const [activeScene, setActiveScene] = useState(0);
   const [filterChar, setFilterChar] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
@@ -244,8 +248,10 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
           {filteredScenes[activeScene] ? (
             <SceneInfoPanel
               scene={filteredScenes[activeScene]}
+              index={scenes.indexOf(filteredScenes[activeScene])}
               characters={characters}
               onAssignActor={onAssignActor}
+              onUpdateScene={onUpdateScene}
             />
           ) : (
             <div className="text-sm text-gray-500">No scene</div>
@@ -373,12 +379,16 @@ export default function ScriptDisplay({ scenes, characters, onAssignActor }: Pro
 
 function SceneInfoPanel({
   scene,
+  index,
   characters,
   onAssignActor,
+  onUpdateScene,
 }: {
   scene: Scene;
+  index: number;
   characters: CharacterStats[];
   onAssignActor?: (character: string, actorName: string, actorEmail: string) => void;
+  onUpdateScene?: (index: number, partial: Partial<Scene>) => void;
 }) {
   const formatDuration = (secs?: number | string) => {
     const total = Number(secs);
@@ -402,6 +412,77 @@ function SceneInfoPanel({
       },
   );
 
+  const [dates, setDates] = useState<string[]>([]);
+  useEffect(() => {
+    fetch("/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: {
+          name: "calendar_suggest",
+          arguments: { id: String(scene.sceneNumber), time: scene.time },
+        },
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        try {
+          const text = data?.result?.content?.[0]?.text;
+          if (text) setDates(JSON.parse(text).dates || []);
+        } catch {
+          setDates([]);
+        }
+      })
+      .catch(() => setDates([]));
+  }, [scene.sceneNumber, scene.time]);
+
+  const [query, setQuery] = useState("");
+  const [loc, setLoc] = useState<{ primary?: any; backups?: any[] }>({});
+  function searchLocation() {
+    fetch("/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: "map_search", arguments: { query } },
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        try {
+          const text = data?.result?.content?.[0]?.text;
+          if (text) setLoc(JSON.parse(text));
+        } catch {
+          setLoc({});
+        }
+      })
+      .catch(() => setLoc({}));
+  }
+
+  function selectDate(d: string) {
+    const next = [...scene.shootingDates, d];
+    onUpdateScene?.(index, { shootingDates: next });
+  }
+  function selectLocation(l: any) {
+    onUpdateScene?.(index, { shootingLocations: [l.name] });
+    setLoc((prev) => ({ ...prev, primary: l }));
+  }
+
+  const primary = loc.primary;
+  const backups = loc.backups as any[] | undefined;
+  const selectedDate = scene.shootingDates[0];
+
   return (
     <div className="space-y-6 text-sm text-gray-700">
       <div>
@@ -412,6 +493,7 @@ function SceneInfoPanel({
       </div>
       <div>
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Shooting Dates</h3>
+        <Calendar available={dates} onSelect={selectDate} />
         {scene.shootingDates.length ? (
           <ul className="mt-1 space-y-1">
             {scene.shootingDates.map((d) => (
@@ -424,6 +506,26 @@ function SceneInfoPanel({
       </div>
       <div>
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Shooting Locations</h3>
+        <div className="mb-2 flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 rounded border px-2 py-1 text-xs"
+            placeholder="Search location"
+          />
+          <button
+            type="button"
+            onClick={searchLocation}
+            className="rounded bg-gray-200 px-2 text-xs"
+          >
+            Go
+          </button>
+        </div>
+        <LocationMap
+          location={primary}
+          backups={backups}
+          onSelect={selectLocation}
+        />
         {scene.shootingLocations.length ? (
           <ul className="mt-1 space-y-1">
             {scene.shootingLocations.map((l) => (
@@ -433,6 +535,14 @@ function SceneInfoPanel({
         ) : (
           <p className="mt-1">Unknown</p>
         )}
+      </div>
+      <div>
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Weather</h3>
+        <WeatherPanel
+          lat={primary?.lat}
+          lon={primary?.lon}
+          date={selectedDate}
+        />
       </div>
       <div>
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Cast</h3>

@@ -178,6 +178,17 @@ export default function Home() {
     );
   }
 
+  function updateScene(index: number, partial: Partial<Scene>) {
+    setScenes((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...partial };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("scenes", JSON.stringify(next));
+      }
+      return next;
+    });
+  }
+
   return (
     <main className="flex h-full flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200">
       <div className="mx-auto flex w-full max-w-5xl flex-1 min-h-0 flex-col overflow-hidden p-6">
@@ -216,6 +227,7 @@ export default function Home() {
               scenes={scenes}
               characters={characters}
               onAssignActor={assignActor}
+              onUpdateScene={updateScene}
             />
           </div>
         )}
